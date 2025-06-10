@@ -1,0 +1,5 @@
+wiki/
+# vi files
+*.swp
+*.back
+
