@@ -1,0 +1,24 @@
+.editorconfig
+.idea
+.pre-commit-config.yaml
+.readthedocs.yml
+.travis.yml
+.vscode
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+# Docker
+.docker
+# Python
+__pycache__
+**/__pycache__
+**/*.pyc
+# Virtual envs
+env/
+venv/
+
+# Local PostgreSQL data
+data/
+

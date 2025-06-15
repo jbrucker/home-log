@@ -5,5 +5,5 @@ wiki/
 *.swp
 *.back
 # environment variables
-.env
+.env*
 
