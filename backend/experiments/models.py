@@ -1,0 +1,16 @@
+"""Define models for entity types using SqlAlchemy syntax."""
+
+"""ORM Model for user."""
+from sqlalchemy import Column, String, Integer, DateTime, TIMESTAMP
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import UUID
+from app.core.database import Base
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(100), unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), default=func.now())
+
