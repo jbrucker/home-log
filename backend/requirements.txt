@@ -1,0 +1,21 @@
+# Unversioned requirements for initial development.
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+python-decouple
+pydantic[email]
+# For Argon2 hashes you can use argon2-cffi or passlib[argon2].
+# passlib is just a wrapper for argon2-cffi and requires it.
+# For simplicity & faster updates, use argon2-cffi directly.
+# For a consistent interface to multiple hashing algorithms
+# (like bcrypt), use passlib.  Used in ./app/core/security.py.
+# argon2-cffi automatically also installs argon2-cffi-bindings
+argon2-cffi
+# passlib[argon2]
+# passlib[bcrypt]
+python-jose[cryptography]
+uuid7
+
+# Requirements for testing
+pytest
