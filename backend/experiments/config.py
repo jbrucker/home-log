@@ -1,5 +1,10 @@
+"""Is the settings variable instantiated only once, 
+   or each time the module is imported?
+
+   Answer: It is instantiated only once.
+"""
 class Settings:
-    COUNT = 0
+    COUNT = 0  # class variable
 
     def __init__(self):
         self.counter = Settings.get_count()
