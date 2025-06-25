@@ -5,8 +5,6 @@
 import os
 from decouple import config
 
-
-
 def test_env_vars():
     #os.setenv("DATABASE_URL", "sqlite:///localhost/test.sqlite")
     print("Set DATABASE_URL envvar")
@@ -24,6 +22,20 @@ def test_database_connection():
     session = db.get_session()
     print("db.get_session returned", type(session))
 
+def test_create_engine():
+    """We can change the database engine, database connection, and session maker."""
+    from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncEngine, AsyncSession
+    database_url = "sqlite+aiosqlite:///:memory:"  # in-memory SQLite database
+    db.create_engine(database_url)
+    print("New database engine is", type(db.engine))
+    print("New database URL is", db.engine.url)
+    assert db.database_url == database_url
+    # strings look same, but are not the same object
+    assert str(db.engine.url) == database_url
+    assert isinstance(db.engine, AsyncEngine)
+    session = db.get_session()
+    print("db.get_session returned", type(session))
+    assert isinstance(session(), AsyncSession)
 
 if __name__ == '__main__':
     test_env_vars()

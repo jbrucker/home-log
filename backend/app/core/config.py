@@ -1,7 +1,7 @@
 from decouple import config
 
 # Note the async SQLite URL uses aiosqlite
-TEST_DATABASE_URL = "sqlite+aiosqlite:///testing.sqlite"
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 
 class Settings:
     """Globally available constants based on environment variables
