@@ -3,6 +3,18 @@ from decouple import config
 # Note the async SQLite URL uses aiosqlite
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 
+# Clean way to create a database URL for Postgres
+"""
+from sqlalchemy.engine import URL
+url = URL.create(
+        drivername="postgresql+async",
+        username="postgres",
+        password="FatChance",
+        host="db",  # for Docker container
+        database="homelog"
+        )
+"""
+
 class Settings:
     """Globally available constants based on environment variables
     or specified values (for testing).
