@@ -84,5 +84,10 @@ class Database:
         async with self.engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
+    async def destroy_tables(self):
+        """Destroy tables. Intended for testing using in-memory database."""
+        async with self.engine.begin() as connection:
+            await connection.run_sync(Base.metadata.drop_all)
+
 # Shared database instance 
 db = Database()

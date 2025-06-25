@@ -2,7 +2,7 @@
    Requires pytest-asyncio be installed for async support.
 """
 import pytest
-from app.core.database import db
+from app.core.database import db, Base
 from app import models, schemas
 from app.data_access import user_dao
 
@@ -15,7 +15,12 @@ async def setUp():
     db.create_engine(TEST_DATABASE_URL)
     await db.create_tables()  # Create tables before each test
     # Optionally, you can add code to insert sample data here
-    yield
+    try:
+        yield
+    finally:
+        await db.destroy_tables()
+        print("Destroy database tables")
+        
 
 async def create_users(howmany: int):
     """Create multiple users.  Requires database and table already initialized."""
@@ -28,7 +33,7 @@ async def create_users(howmany: int):
     print(f"Added {n} users")
 
 @pytest.mark.asyncio
-async def test_create_user(setUp):
+async def test_create_user():
     """Can add a user to database using dao.create_user with UserCreate schema object"""
     async with db.get_session() as session:
         new_user = schemas.UserCreate(email="tester@hackers.com", username="Tester")
@@ -41,7 +46,7 @@ async def test_create_user(setUp):
         assert user.created_at is not None
 
 @pytest.mark.asyncio
-async def test_email_must_be_unique(setUp):
+async def test_email_must_be_unique():
     """Cannot add 2 users with the same email"""
     async with db.get_session() as session:
         new_user1 = schemas.UserCreate(email="tester@hackers.com", username="Tester")
