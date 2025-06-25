@@ -3,6 +3,7 @@
    Test overriding values in .env by setting an envvar in code.
 """
 import os
+from typing import AsyncGenerator
 from decouple import config
 
 def test_env_vars():
@@ -35,7 +36,8 @@ def test_create_engine():
     assert isinstance(db.engine, AsyncEngine)
     session = db.get_session()
     print("db.get_session returned", type(session))
-    assert isinstance(session(), AsyncSession)
+    assert not isinstance(session, AsyncSession), "session is not an AsyncSession"
+    assert isinstance(session, AsyncGenerator), "session is not an AsyncGenerator"
 
 if __name__ == '__main__':
     test_env_vars()

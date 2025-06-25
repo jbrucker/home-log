@@ -37,7 +37,9 @@ class Database:
 
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """Async context manager that yields a generator for creating an AsyncSession,
+        """Async context manager that yields a generator for creating AsyncSession.
+
+
           and ensures it's closed after commit.
 
         :returns: async_sessionmaker[AsyncSession]
@@ -46,7 +48,7 @@ class Database:
             try:
                 yield session
                 await session.commit()
-            except Exception:
+            except Exception as ex:
                 await session.rollback()
                 raise
             finally:

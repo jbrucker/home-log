@@ -19,3 +19,4 @@ uuid7
 
 # Requirements for testing
 pytest
+pytest-asyncio

@@ -18,6 +18,11 @@ On my Linux machine I added this to `.vscode/settings.json`:
     "python.defaultInterpreterPath": "${workspaceFolder}/env/bin/python",
     "python.terminal.activateEnvInCurrentTerminal": true,
     "terminal.integrated.env.linux": { "PYTHONPATH": "${workspaceFolder}" }
+    // Don't show __pycache__ or .pytest_cache folders in Explorer view
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true
+    }
 }
 ```
 
