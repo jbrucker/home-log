@@ -1,5 +1,13 @@
-"""ORM operations for user objects."""
+"""ORM operations for user objects.
+
+
+TODO:
+   Encapsulate sqlalchemy exceptions in framework-independent exceptions.
+   sqlalchemy.exc.IntegrityError -> IntegrityError or ValueError
+"""
+
 from datetime import datetime, timezone
+from typing import Collection
 from sqlalchemy.ext.asyncio import AsyncSession
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
 from sqlalchemy import select
@@ -8,8 +16,19 @@ from app import models, schemas
 # from app.core.security import hash_password
 
 
-async def create_user(session: AsyncSession, user: schemas.UserCreate) -> models.User:
-    user = models.User(email=user.email, username=user.username)
+async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
+    """Add a new user to persistent storage, assigning a user.id and creation date.
+
+    :param session: database connection "session" object
+    :param user_data: schema object containing attributes for a new user entity
+    :returns: a User model object populated with values of the corresponding User entity
+    :raises IntegrityError: if uniqueness constraint(s) violated
+    :raises ValueError: if any required values are missing or invalid (Note)
+
+    Note: the Schema object should perform data validation, so a ValueError raised on save
+          user indicates an inconsistency between schema requirements and database requirements.
+    """
+    user = models.User(email=user_data.email, username=user_data.username)
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -37,7 +56,25 @@ async def get_user_by_id(session: AsyncSession, user_id: int) -> models.User | N
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
+async def get_users(session: AsyncSession, limit: int = 0) -> Collection[models.User]:
+    """Get all users, ordered by user.id.
+
+    :param limit: max number of values to return, default is unlimited
+    :returns: collection of user objects. May be empty.
+    """
+    stmt = select(models.User).order_by(models.User.id)
+    if limit > 0:
+        stmt = stmt.limit(limit)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
 async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
+    """Persist a user object, with auto-assigned creation date/time.
+
+    :param user_data: data for the user, as a schemas object
+    :returns: User model with persisted values.
+    """
     user = models.User(email=user_data.email, username=user_data.username)
     session.add(user)
     await session.commit()

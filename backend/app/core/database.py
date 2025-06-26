@@ -63,8 +63,8 @@ class Database:
         try:
             self.engine: AsyncEngine = create_async_engine(
                 database_url,
-                echo=True,   # Log SQL queries (useful for development)
-                future=True  # Use SQLAlchemy 2.0 style APIs
+                echo=False,   # Log SQL queries (useful for development)
+                future=True   # Use SQLAlchemy 2.0 style APIs
             )
             # if that worked, set the database_url
             self.database_url = database_url

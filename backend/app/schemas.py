@@ -3,7 +3,7 @@ These schemas are used in API endpoints.
 """
 
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime, timezone
 
 class UserCreate(BaseModel):
@@ -19,8 +19,6 @@ class User(UserCreate):
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
     # model_config replaces the Config inner-class in Pydantic 2.0
-    model_config = {
-        "from_attributes": True,
-        "model_class": "User"
-    }
+    model_config = ConfigDict(from_attributes=True)
+
 
