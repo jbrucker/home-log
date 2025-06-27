@@ -27,3 +27,21 @@ On my Linux machine I added this to `.vscode/settings.json`:
 ```
 
 without setting `PYTHONPATH` I was getting module not found errors for `app`, even though it has a `__init__.py` file.
+
+---
+
+### How to Run
+
+1. Initialize the database (Alembic):
+   ```bash
+   alembic upgrade head
+   ```
+
+2. Start FastAPI:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+3. Access docs:
+   - OpenAPI: `http://localhost:8000/docs`
+   - Redoc: `http://localhost:8000/redoc`

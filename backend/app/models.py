@@ -7,7 +7,7 @@
 
 # DateTime, Integer, TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime
-from sqlalchemy import Column, ForeignKey, String, DateTime, Integer, TIMESTAMP, func
+from sqlalchemy import ForeignKey, String, Integer, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
 #   from sqlalchemy.dialects.postgresql import UUID

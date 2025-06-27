@@ -21,12 +21,13 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
 
     :param session: database connection "session" object
     :param user_data: schema object containing attributes for a new user entity
-    :returns: a User model object populated with values of the corresponding User entity
+    :returns: a User model object populated with values of corresponding entity
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are missing or invalid (Note)
 
-    Note: the Schema object should perform data validation, so a ValueError raised on save
-          user indicates an inconsistency between schema requirements and database requirements.
+    Note: the Schema object should perform data validation, so a ValueError on
+          save indicates an inconsistency between schema validators and 
+          database requirements.
     """
     user = models.User(email=user_data.email, username=user_data.username)
     session.add(user)
