@@ -32,7 +32,7 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
 
 ### How to Run
 
-1. Initialize the database (Alembic):
+1. (Optional) Initialize the database with Alembic:
    ```bash
    alembic upgrade head
    ```
@@ -41,7 +41,12 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
    ```bash
    uvicorn app.main:app --reload
    ```
-
+4. Get a user (assuming database has some seed data):
+   ```
+   curl http://localhost:8000/users/1
+   ```
+   should display JSON for user with id 1.
+   
 3. Access docs:
    - OpenAPI: `http://localhost:8000/docs`
    - Redoc: `http://localhost:8000/redoc`

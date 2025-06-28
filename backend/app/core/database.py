@@ -6,6 +6,7 @@
        defined using `Base` from this module.
        This is optional -- you can create schema in many ways.
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -35,7 +36,10 @@ class Database:
             raise ValueError("database_url is not set in config.Settings.")
         self.create_engine(settings.database_url)
 
-    @asynccontextmanager
+    # This annotation causes an error with FastAPI's `Depends(...)`
+    # because FastAPI expects  a callable returning `Awaitable` or `AsyncGenerator`.
+    # not a context manager function.
+    #@asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Async context manager that yields a generator for creating AsyncSession.
 
@@ -44,13 +48,15 @@ class Database:
 
         :returns: async_sessionmaker[AsyncSession]
         """
-        async with self.asyncSessionMaker() as session:
+        async with self.async_sessionmaker() as session:
             try:
                 yield session
-                await session.commit()
+                # code using the session calls session.commit() itself, if needed.
+                # await session.commit()
             except Exception as ex:
                 await session.rollback()
                 raise
+                # raise Exception(f"Database operation failed: {ex}")
             finally:
                 await session.close()
 
@@ -72,11 +78,11 @@ class Database:
             logging.error(f"Failed to create async engine for {database_url}: {ex}")
             raise ex
 
-        self.asyncSessionMaker = async_sessionmaker(
+        self.async_sessionmaker = async_sessionmaker(
             self.engine,
-            # class_=AsyncSession,
-            expire_on_commit=False,  # SqlAlchemy recommends avoid expire on commit for async
-            future=True              # Use SqlAlchemy 2.0 style API?
+            expire_on_commit=False,   # SqlAlchemy recommends avoid expire on commit for async
+            autoflush=False,          # Default is False (I think). Not recommended for async.
+            class_=AsyncSession,
         )
 
     async def create_tables(self):
@@ -91,3 +97,38 @@ class Database:
 
 # Shared database instance 
 db = Database()
+
+async def main():
+    # can we use async for to get a session?
+    # Answer: YES.  It displays only 1 session not an infinite loop.
+    print("\nMethod 1: async for session in db.get_session()")
+    async for session in db.get_session():
+        print("Session type:", type(session))
+        # You can use the session here, e.g., to query or add data.
+        await session.commit()  # Nothing to commit.
+        await session.close()
+
+    # Can we use db.asyncSessionMaker in a "with" clause?
+    print("\nMethod 2: async with db.async_sessionmaker()  as session")
+    async with db.async_sessionmaker() as session:
+        print("Session type:", type(session))
+        # You can use the session here, e.g., to query or add data.
+        await session.commit()  # Nothing to commit.
+        await session.close()
+
+    # Can with use with to get a session?
+    # Answer: NO, "async_generator object is not an async context manager protocol""
+    print("\nMethod 3: async with db.get_session() as session")
+    try:
+        async with db.get_session() as session:
+            print("Session type:", type(session))
+            # You can use the session here, e.g., to query or add data.
+            await session.commit()  # Nothing to commit.
+            await session.close()
+    except Exception as ex:
+        print("Exception:", ex)
+
+
+if __name__ == '__main__':
+    db.create_engine("sqlite+aiosqlite:///:memory:")
+    asyncio.run(main())

@@ -40,10 +40,11 @@ async def get_user_by_id(session: AsyncSession, user_id: int) -> models.User | N
     """Get a user from database using the primary key (id)."""
     if not isinstance(user_id, int) or user_id <= 0:
         return None
-    stmt = select(models.User).where(models.User.id == user_id)
-    result = await session.execute(stmt)
+    #stmt = select(models.User).where(models.User.id == user_id)
+    #result = await session.execute(stmt)
+    user_result = await session.get(models.User, user_id)
     # Return the first result or None if no match.
-    return result.scalar_one_or_none()
+    return user_result
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> models.User | None:
@@ -52,10 +53,12 @@ async def get_user_by_email(session: AsyncSession, email: str) -> models.User | 
     # Return the first result or None if no match.
     return result.scalar_one_or_none()
 
+
 async def get_user_by_id(session: AsyncSession, user_id: int) -> models.User | None:
     stmt = select(models.User).where(models.User.id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
 
 async def get_users(session: AsyncSession, limit: int = 0) -> Collection[models.User]:
     """Get all users, ordered by user.id.
@@ -93,10 +96,14 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
     return user
 
 
-async def delete_user(session: AsyncSession, user_id: int) -> bool:
+async def delete_user(session: AsyncSession, user_id: int) -> models.User | None:
+    """Delete a user by id.
+
+    :returns: data for the deleted user or None if no matching user.
+    """
     user = await get_user_by_id(session, user_id)
     if user:
         await session.delete(user)
         await session.commit()
-        return True
-    return False
+        return user
+    return None

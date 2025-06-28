@@ -14,7 +14,7 @@ class UserCreate(BaseModel):
 
 class User(UserCreate):
     """The complete User schema."""
-    id: int
+    # id: int
     # In model classes, these default to current time
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
