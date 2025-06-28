@@ -1,10 +1,14 @@
 """A globally accessible connection to the database.
 
-    db - a shared instance of database.
-    db.get_session() - get an async session object for the database
+    db                 a shared instance of the Database class.
+    db.create_engine(url) change the URL of the database engine and connection.
+                       This is intended for running tests.
+    db.get_session() - an async generator for AsyncSession objects
     db.create_tables - create table schema using SqlAlchemy ORM model classes 
-       defined using `Base` from this module.
-       This is optional -- you can create schema in many ways.
+                       defined using `Base` from this module.
+    db.delete_tables - delete table schema
+
+    Use of `db.create_tables` is optional -- you can create schema in many ways.
 """
 import asyncio
 import logging
@@ -36,17 +40,16 @@ class Database:
             raise ValueError("database_url is not set in config.Settings.")
         self.create_engine(settings.database_url)
 
-    # This annotation causes an error with FastAPI's `Depends(...)`
-    # because FastAPI expects  a callable returning `Awaitable` or `AsyncGenerator`.
+    # The asynccontextmanager annotation causes an error 
+    # with FastAPI's `Depends(...)` because FastAPI expects  
+    # a callable returning `Awaitable` or `AsyncGenerator`,
     # not a context manager function.
-    #@asynccontextmanager
+    ##@asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """Async context manager that yields a generator for creating AsyncSession.
-
-
+        """Yields a generator for creating AsyncSession
           and ensures it's closed after commit.
 
-        :returns: async_sessionmaker[AsyncSession]
+        :returns: AsyncGenerator[AsyncSession]
         """
         async with self.async_sessionmaker() as session:
             try:
@@ -56,12 +59,13 @@ class Database:
             except Exception as ex:
                 await session.rollback()
                 raise
+                # Or wrap the exception (abstraction):
                 # raise Exception(f"Database operation failed: {ex}")
             finally:
                 await session.close()
 
     def create_engine(self, database_url: str) -> None:
-        """Create an async engine and async sessionmaker and save as attributes.
+        """Create an async engine and async sessionmaker as attributes.
 
            :param database_url: URL of an async database.
            :raises Exception: If the engine creation fails.
@@ -98,8 +102,9 @@ class Database:
 # Shared database instance 
 db = Database()
 
+
 async def main():
-    # can we use async for to get a session?
+    # Can we use `async for` to get a session?
     # Answer: YES.  It displays only 1 session not an infinite loop.
     print("\nMethod 1: async for session in db.get_session()")
     async for session in db.get_session():
@@ -109,6 +114,7 @@ async def main():
         await session.close()
 
     # Can we use db.asyncSessionMaker in a "with" clause?
+    # Answer: YES. But you must close the session in code.
     print("\nMethod 2: async with db.async_sessionmaker()  as session")
     async with db.async_sessionmaker() as session:
         print("Session type:", type(session))
