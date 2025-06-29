@@ -15,8 +15,11 @@ argon2-cffi
 # passlib[argon2]
 # passlib[bcrypt]
 python-jose[cryptography]
+# python-multipart is needed to handle form data, like a username/password form
+python-multipart
 uuid7
 
 # Requirements for testing
+httpx
 pytest
 pytest-asyncio

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app import models, schemas
-# from app.core.security import hash_password
+from app.core import security
 
 
 async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
@@ -21,7 +21,7 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
 
     :param session: database connection "session" object
     :param user_data: schema object containing attributes for a new user entity
-    :returns: a User model object populated with values of corresponding entity
+    :returns: a User model instance with persisted values
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are missing or invalid (Note)
 
@@ -29,10 +29,20 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
           save indicates an inconsistency between schema validators and 
           database requirements.
     """
-    user = models.User(email=user_data.email, username=user_data.username)
+    user = models.User(**user_data.model_dump())  # **user_data.dict() is deprecated
     session.add(user)
     await session.commit()
-    await session.refresh(user)
+    await session.refresh(user)     # update user.id
+    # if user_data contains a password, hash and save it
+    """TODO
+    if user_data.password:
+        hashed_password = security.hash_password(user_data.password)
+        user_password = models.UserPassword(user_id=user.id, 
+                                            hashed_password=hashed_password)
+        session.add(user_password)
+        await session.commit()
+        await session.refresh(user) # update reference to password
+    """
     return user
 
 
@@ -73,18 +83,6 @@ async def get_users(session: AsyncSession, limit: int = 0) -> Collection[models.
     return result.scalars().all()
 
 
-async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
-    """Persist a user object, with auto-assigned creation date/time.
-
-    :param user_data: data for the user, as a schemas object
-    :returns: User model with persisted values.
-    """
-    user = models.User(email=user_data.email, username=user_data.username)
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
-
 async def update_user(session: AsyncSession, user_id: int, user_data: schemas.UserCreate) -> models.User | None:
     user = await get_user_by_id(session, user_id)
     if user:
@@ -95,6 +93,8 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
         await session.refresh(user)
     return user
 
+async def update_user_password(session: AsyncSession, user_id: int, password_text: str):
+    pass
 
 async def delete_user(session: AsyncSession, user_id: int) -> models.User | None:
     """Delete a user by id.

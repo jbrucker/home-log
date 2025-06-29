@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime, timezone
 
+
 class UserCreate(BaseModel):
     """User attributes that are given to a service endpoint to create a new User entity."""
     email: EmailStr
@@ -21,4 +22,11 @@ class User(UserCreate):
     # model_config replaces the Config inner-class in Pydantic 2.0
     model_config = ConfigDict(from_attributes=True)
 
+"""Authentication-related Schemas"""
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
+
+class TokenData(BaseModel):
+    id: Optional[str] = None

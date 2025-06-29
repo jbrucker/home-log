@@ -2,7 +2,7 @@
 
 import logging
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationMismatchError
+from argon2.exceptions import VerifyMismatchError
 # Uncomment the following lines if you want to use Passlib instead of argon2-cffi
 # from passlib.hash import argon2
 # from passlib.context import CryptContext
@@ -26,7 +26,7 @@ def verify_password(plain_password: str|bytes, hashed_password: str|bytes) -> bo
     try:
         # argon2.verify expects hashed_password to be first argument
         return pwd_context.verify(hashed_password, plain_password)
-    except VerificationMismatchError:
+    except VerifyMismatchError:
         return False
     except Exception as e:
         # Handle other exceptions as needed

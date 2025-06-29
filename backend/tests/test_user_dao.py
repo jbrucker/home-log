@@ -1,50 +1,17 @@
 """Tests for the user_dao module.
    Requires pytest-asyncio be installed for async support.
 """
-import pytest, pytest_asyncio
-from app.core.database import db
-# Must import models so that db.create_tables() can create the table scheam
-from app import models, schemas
-from app.data_access import user_dao
+import pytest
 # TODO  Eliminate Framework dependency by defining generic Exceptions
 import sqlalchemy
+from app import models, schemas
+from app.data_access import user_dao
+from .fixtures import db, session
 
-"""Use a temporary in-memory database for all tests"""
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-db.create_engine(TEST_DATABASE_URL)
-assert db.database_url == TEST_DATABASE_URL
-print("Database engine url", str(db.engine.url))
-assert str(db.engine.url) == TEST_DATABASE_URL
-
-
-@pytest_asyncio.fixture()
-async def session():
-    """Test fixture that yields an AsyncSession for use in a test."""
-    # Create tables before each test
-    await db.create_tables()  
-    try:
-        async for session in db.get_session():
-            yield session
-            session.close()
-    finally:
-        await db.destroy_tables()
-        print("Destroy database tables")
-
-@pytest_asyncio.fixture() # fixture(autouse=True)
-async def setUp():
-    """Test fixture that yields nothing. Test must create its own AsyncSession."""
-    # Create tables before each test
-    await db.create_tables()  
-    try:
-        yield
-    finally:
-        await db.destroy_tables()
-        print("Destroy database tables")      
-
-# TODO: Use same Session as the test, or separate Session?
 
 async def create_users(howmany: int):
     """Create multiple users.  Assumes database and User table already initialized."""
+    # TODO: Use same Session as the test method, or a separate Session?
     async for session in db.get_session():
         for n in range(1, howmany+1):
             username = f"Tester{n}"
@@ -171,3 +138,9 @@ async def test_delete_user(session):
     # Verify user is deleted
     ghost_user = await user_dao.get_user_by_id(session, user_to_delete.id)
     assert ghost_user is None
+
+
+@pytest.mark.asyncio
+async def test_set_user_password(session):
+    """Can set a password for a user and it is saved in hashed form."""
+    pass
