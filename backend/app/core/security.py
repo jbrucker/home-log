@@ -24,7 +24,7 @@ def hash_password(password: str|bytes) -> str:
 def verify_password(plain_password: str|bytes, hashed_password: str|bytes) -> bool:
     """Verify a password against its Argon2 hash."""
     try:
-        # argon2.verify expects hashed_password to be first argument
+        # argon2.verify expects hashed_password to be the first argument
         return pwd_context.verify(hashed_password, plain_password)
     except VerifyMismatchError:
         return False

@@ -93,8 +93,35 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
         await session.refresh(user)
     return user
 
-async def update_user_password(session: AsyncSession, user_id: int, password_text: str):
-    pass
+async def set_user_password(session: AsyncSession, 
+                            user_id: int, 
+                            password: str) -> models.UserPassword | None:
+    """Set or update a user's password.
+    :param user_id: id of user 
+    :param password: plain text of the new password
+    :returns: UserPassword of the updated or added password
+    :raises ValueError: If no User with the given user_id value
+    """
+    stmt = select(models.UserPassword).where(models.UserPassword.user_id == user_id)
+    user_password: models.UserPassword = await session.execute(stmt).scalar_one_or_none()
+
+    hashed_password = security.hash_password(password)
+    if user_password:
+        # update password of an existing user
+        user_password.hashed_password = hashed_password
+        user_password.updated_at = datetime.now(timezone.utc)
+    else:
+        # create a new UserPassword referencing the user
+        user_password = models.UserPassword(
+                        user_id=user_id,
+                        hashed_password=hashed_password,
+                        updated_at=datetime.now(timezone.utc)
+                        )
+    session.add(user_password)
+    await session.commit()
+    await session.refresh(user_password)
+    return user_password()
+
 
 async def delete_user(session: AsyncSession, user_id: int) -> models.User | None:
     """Delete a user by id.

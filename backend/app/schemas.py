@@ -24,9 +24,13 @@ class User(UserCreate):
 
 """Authentication-related Schemas"""
 class Token(BaseModel):
+    """The fields in a JWT access token."""
     access_token: str
     token_type: str
 
 
 class TokenData(BaseModel):
+    """The fields in the token payload.
+        These can be anything you want.
+    """
     id: Optional[str] = None
