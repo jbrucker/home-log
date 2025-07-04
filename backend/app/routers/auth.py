@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core import database, security
 from app.data_access import user_dao
-from app.utils import oauth2
-from app import models, schemas
+from app.utils import jwt
+from app import schemas
 
 router = APIRouter(tags=['Authentication'])
 
@@ -29,32 +29,29 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         email = form_data.username
         password = form_data.password
         logging.warning(f"Login for {email} with {password}")
-        if not email:
-            raise ValueError("Missing username")
-        if not password:
-            raise ValueError("Missing password")
+        assert email is not None
+        assert password is not None
     except:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
                             detail=f"Missing user email or password"
                             )
 
     user = await user_dao.get_user_by_email(session, email=email)
-    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail=f"Invalid Credentials",
             headers={"WWW-Authenticate": "Bearer"}
             )
-    
-    if not user.hashed_password:
+    hashed_password = await user_dao.get_password(session, user)
+    if not hashed_password:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail=f"User does not have local password credential",
             headers={"WWW-Authenticate": "Bearer"}
             )
 
-    if not security.verify_password(hashed_password=user.hashed_password, plain_password=password):
+    if not security.verify_password(hashed_password=hashed_password, plain_password=password):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail=f"Invalid Credentials",
@@ -62,9 +59,6 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
             )
 
     # create and return a token
-    access_token = oauth2.create_access_token(data={"user_id": user.id})
+    access_token = jwt.create_access_token(data={"user_id": user.id})
 
     return {"access_token": access_token, "token_type": "bearer"}
-
-#async def get_current_user(token: str = Depends(oauth2#_scheme)):
-#    pass
