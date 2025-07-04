@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import schemas
 from app.data_access import user_dao
+from app.utils import oauth2
 
 
 router = APIRouter(tags=["users"])  # can use prefix="/users" to factor out path prefix.
@@ -42,7 +43,8 @@ async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)
 async def register_user(user_data: schemas.UserCreate,
                         request: Request,
                         response: Response,
-                        session: AsyncSession = Depends(db.get_session)
+                        session: AsyncSession = Depends(db.get_session),
+                        current_user = Depends(oauth2.get_current_user)
                         ):
     """Persist a new user.
        If success, return the user data and a `Location:` header containing the URL of the new entity.
@@ -60,7 +62,8 @@ async def register_user(user_data: schemas.UserCreate,
 
 @router.put("/users/{user_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
 async def update_user(user_id: int, user_data: schemas.UserCreate, 
-                      session: AsyncSession = Depends(db.get_session)
+                      session: AsyncSession = Depends(db.get_session),
+                      current_user = Depends(oauth2.get_current_user)
                      ):
     """Update the data for an existing user, using the `user_id` to identify the user to modify."""
     user = await user_dao.get_user_by_id(session, user_id)
