@@ -10,6 +10,14 @@ uvicorn app.main:app --reload
 - use a REST tool to access `/user/` endpoints.
 - access OpenAPI documentation
 
+Test Accounts
+
+| username | email            | password |
+|----------|------------------|----------|
+| Jim      |jim@hackers.com   | hackme2  |
+| Harry    |harry@hackers.com | hackme2  | 
+| Sally    |sally@hackers.com | hackme2  |
+
 ## VS Code Configuration
 
 On my Linux machine I added this to `.vscode/settings.json`:

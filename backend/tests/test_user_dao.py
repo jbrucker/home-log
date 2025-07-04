@@ -8,14 +8,15 @@ from app import models, schemas
 from app.data_access import user_dao
 from .fixtures import db, session
 
+EMAIL_DOMAIN = "yahoo.com"
 
 async def create_users(howmany: int):
     """Create multiple users.  Assumes database and User table already initialized."""
     # TODO: Use same Session as the test method, or a separate Session?
     async for session in db.get_session():
         for n in range(1, howmany+1):
-            username = f"Tester{n}"
-            email = f"{username.lower()}@yahoo.com"
+            username = f"User{n}"
+            email = f"{username.lower()}@{EMAIL_DOMAIN}"
             session.add(models.User(username=username, email=email))
         await session.commit()
     print(f"Added {n} users")
@@ -34,9 +35,42 @@ async def test_create_user(session):
     assert user.created_at is not None
 
 @pytest.mark.asyncio
+async def test_get_user_by_id(session):
+    """get_user_by_id returns a User or None."""
+    new_user = schemas.UserCreate(email="anonymous@hackers.com", username="Hacker")
+    # my DAO return model objects, not schema objects
+    user = await user_dao.create_user(session, new_user)
+    assert isinstance(user, models.User)
+    # model should be fully populated
+    assert user.id > 0
+    # get Hacker again
+    result = await user_dao.get_user_by_id(session, user.id)
+    assert result.email == user.email
+    assert result.username == user.username
+    # get non-existent user
+    result = await user_dao.get_user_by_id(session, 999999)
+    assert result is None
+
+@pytest.mark.asyncio
+async def test_get_user_by_email(session):
+    """get_user_by_email returns a User or None."""
+    await create_users(5)  # "User1", "User2", ...
+    # get each user
+    for user_num in range(1,6):
+        email = f"user{user_num}@{EMAIL_DOMAIN}"
+        result = await user_dao.get_user_by_email(session, email=email)
+        assert result is not None, f"Failed to get User for email {email}"
+        assert isinstance(result, models.User), f"get_user_by_email returned a {type(result).__name__}"
+        assert result.email == email
+    # non-existent user
+    result = await user_dao.get_user_by_email(session, "completely-bogus-user@bitnet")
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_email_must_be_unique(session):
     """Cannot add 2 users with the same email"""
-    new_user1 = schemas.UserCreate(email="tester@hackers.com", username="Tester")
+    new_user1 = schemas.UserCreate(email="testhacker@hackers.com", username="Hacker")
     # my DAO return model objects, not schema objects
     user1 = await user_dao.create_user(session, new_user1)
     assert isinstance(user1, models.User)
@@ -75,8 +109,9 @@ async def test_update_user_nonexistent(session):
     """Updating a non-existent user returns None."""
     #async with db.get_session() as session:
     updated_data = schemas.UserCreate(email="doesnot@exist.com", username="Nobody")
-    updated_user = await user_dao.update_user(session, 9999, updated_data)
-    assert updated_user is None
+    with pytest.raises(ValueError):
+        updated_user = await user_dao.update_user(session, 99999, updated_data)
+        assert updated_user is None
 
 @pytest.mark.asyncio
 async def test_update_user_email_unique_constraint(session):
@@ -100,9 +135,9 @@ async def test_get_all_users(session):
     #async with db.get_session() as session:
     users = await user_dao.get_users(session)
     assert len(users) == 3
-    assert users[0].username == "Tester1"
-    assert users[1].username == "Tester2"
-    assert users[2].username == "Tester3"
+    assert users[0].username == "User1"
+    assert users[1].username == "User2"
+    assert users[2].username == "User3"
     # Ensure results are ordered by id
     ids = [user.id for user in users]
     assert ids == sorted(ids)
@@ -114,9 +149,9 @@ async def test_get_users_with_limit(session):
     #async with db.get_session() as session:
     users = await user_dao.get_users(session, limit=3)
     assert len(users) == 3
-    assert users[0].username == "Tester1"
-    assert users[1].username == "Tester2"
-    assert users[2].username == "Tester3"
+    assert users[0].username == "User1"
+    assert users[1].username == "User2"
+    assert users[2].username == "User3"
 
 @pytest.mark.asyncio
 async def test_get_users_may_be_empty(session):

@@ -27,15 +27,12 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
 
-    # not sure if we want cascade="delete-orphan" (acts when password disassociated in Python User model instance)
-    user_password: Mapped["UserPassword"] = relationship("UserPassword", uselist=False, backref="user", 
+    # a uni-directional relationship.  
+    # To make it bidirectional use backref=... or define the relationship in both classes & use back_populates
+    user_password: Mapped["UserPassword"] = relationship("UserPassword", 
+                                                         # backref=("user",uselist=False),
+                                                         uselist=False,  
                                                          cascade="all, delete-orphan")
-    @property
-    def hashed_password(self):
-        """The user's hashed password. May be None."""
-        if self.user_password:
-            return self.user_password.hashed_password
-        return None
 
 
 class UserPassword(Base):

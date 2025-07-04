@@ -21,7 +21,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 async def get_current_user(token: str = Depends(oauth2_scheme), 
                      session: Session = Depends(db.get_session),
                      ):
-    """Verify token and get the currently authenticated user.
+    """Verify access token and get the currently authenticated user.
     
     :returns: User model for user_id in token
     :raises HTTPException: with status 401 if token is invalid, expired, 
