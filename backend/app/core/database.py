@@ -35,8 +35,10 @@ class Database:
 
     engine: AsyncEngine
 
-    def __init__(self) -> None:
-        if not settings.database_url:
+    def __init__(self, database_url: str = None) -> None:
+        if database_url:
+            settings.database_url = database_url
+        elif not settings.database_url:
             raise ValueError("database_url is not set in config.Settings.")
         self.create_engine(settings.database_url)
 
@@ -103,12 +105,14 @@ class Database:
 db = Database()
 
 
-async def main():
+async def session_tests():
+    whatis = lambda session: print("          session is", type(session).__name__)
     # Can we use `async for` to get a session?
-    # Answer: YES.  It displays only 1 session not an infinite loop.
+    # Answer: YES.  It yields only 1 session not an infinite loop.
     print("\nMethod 1: async for session in db.get_session()")
+    print("          It yields only 1 session not an infinite loop.")
     async for session in db.get_session():
-        print("Session type:", type(session))
+        whatis(session)
         # You can use the session here, e.g., to query or add data.
         await session.commit()  # Nothing to commit.
         await session.close()
@@ -116,18 +120,21 @@ async def main():
     # Can we use db.asyncSessionMaker in a "with" clause?
     # Answer: YES. But you must close the session in code.
     print("\nMethod 2: async with db.async_sessionmaker()  as session")
+    print("          Works, but you must issue session.close() in code.")
     async with db.async_sessionmaker() as session:
-        print("Session type:", type(session))
+        whatis(session)
         # You can use the session here, e.g., to query or add data.
         await session.commit()  # Nothing to commit.
         await session.close()
 
-    # Can with use with to get a session?
+    # Can we use "with db.get_session()" to get a session?
     # Answer: NO, "async_generator object is not an async context manager protocol""
     print("\nMethod 3: async with db.get_session() as session")
+    print("          Doesn't work.")
+    print("          async_generator object is not an async context manager")
     try:
         async with db.get_session() as session:
-            print("Session type:", type(session))
+            whatis(session)
             # You can use the session here, e.g., to query or add data.
             await session.commit()  # Nothing to commit.
             await session.close()
@@ -137,4 +144,4 @@ async def main():
 
 if __name__ == '__main__':
     db.create_engine("sqlite+aiosqlite:///:memory:")
-    asyncio.run(main())
+    asyncio.run(session_tests())

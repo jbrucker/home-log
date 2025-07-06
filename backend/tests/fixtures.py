@@ -1,22 +1,23 @@
 """Fixtures for testing database and routers."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
+#from sqlalchemy.ext.asyncio import AsyncSession
+import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
 import pytest, pytest_asyncio
 from app.core import security
 from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
-from app import main, models, schemas
+from app import main, models
 
+AUTH_USER_PASSWORD = "Make My Day"
 
 """Use a temporary database for tests"""
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+# db = Database()
 db.create_engine(TEST_DATABASE_URL)
-assert db.database_url == TEST_DATABASE_URL
 print("Database engine url", str(db.engine.url))
 assert str(db.engine.url) == TEST_DATABASE_URL
-
-AUTH_PASSWORD = "Make My Day"
 
 @pytest_asyncio.fixture()
 async def session():
@@ -38,7 +39,7 @@ async def auth_user(session):
     await session.commit()
     await session.refresh(user)
     user_password = models.UserPassword(
-                        hashed_password=security.hash_password(AUTH_PASSWORD),
+                        hashed_password=security.hash_password(AUTH_USER_PASSWORD),
                         user_id=user.id
                     )
     session.add(user_password)
@@ -46,7 +47,16 @@ async def auth_user(session):
     return user
 
 @pytest.fixture()
+async def async_client():
+    """Async test fixture for client -- doesn't work as FastAPI test client.
+       Use the `client` fixture instead.
+    """
+    from httpx import AsyncClient
+    async with AsyncClient(app=main.app) as client:
+        yield client
+
+@pytest.fixture()
 def client():
     """Test fixture for calls to FastAPI route endpoints."""
-    #app.dependency_overrides[get_session] = override_get_session
+    #main.app.dependency_overrides[get_session] = db.get_session
     yield TestClient(main.app)

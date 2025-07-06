@@ -8,6 +8,7 @@ from app import schemas, models
 # VS Code thinks the 'session' import is unused, but it is needed as fixture
 from .fixtures import db, session
 
+
 @pytest.mark.asyncio
 async def test_new_user_password(session):
     """A newly created user does not have a password."""
@@ -57,9 +58,12 @@ async def test_get_user_password(session):
     hashed_password = user_password.hashed_password
     assert security.verify_password(plain_password, hashed_password) is True,\
         f"Passwords don't match. Hashed = {hashed_password}"
+    # we can also get the hashed password w/o UserPassword object by calling user_dao.get_password
+    hashed_password2 = await user_dao.get_password(session, user)
+    assert hashed_password2 == hashed_password, "user_dao.get_password() didn't return userPassword.hashed_password"
 
 
-@pytest.mark.skip("Accessing relationship field in user model doesn't work with async i/o")
+@pytest.mark.skip("Accessing a relationship field in user model doesn't work with async Postgresql")
 @pytest.mark.asyncio
 async def test_user_password_property(session):
     """Can get the UserPassword for a User using a relationship field defined in User model."""
@@ -72,7 +76,7 @@ async def test_user_password_property(session):
     user = await user_dao.get_user_by_id(session, user.id)
     # user.user_password refers to the related UserPassword object
     assert user.user_password is not None
-    assert isinstance(user.user_password, models.UserPassword), f"get_user_password return a {type(user_password).__name__}"
+    assert isinstance(user.user_password, models.UserPassword), f"get_user_password return a {type(user.user_password).__name__}"
     hashed_password = user.user_password.hashed_password
     assert security.verify_password(plain_password, hashed_password) is True,\
         f"Passwords don't match. Hashed = {hashed_password}"

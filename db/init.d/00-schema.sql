@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS user_passwords (
     user_id         INTEGER      PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     password_hash   TEXT         NOT NULL, -- hashed password. Consider: BYTEA or BYTES
-    salt            TEXT         NOT NULL, -- salt for hashing. Consider: BYTEA or BYTES
-    created_at      TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP -- most recent update
+    updated_at      TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP -- most recent update
 );
 
 

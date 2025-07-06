@@ -72,16 +72,16 @@ def test_invalid_token(setup, data):
 
 
 @pytest.mark.skip(reason="verify_access_token does not verify keys in payload. Token consumer should do that.")
-def test_token_bad_payload(setup):
+def test_token_with_bad_payload(setup):
     """token missing required user_id in payload."""
     expires = 1
     # create test payload w/o 'user_id'
-    data = {"id": 999, "email": "santa@northpole.org"}
+    data = {"email": "santa@northpole.org"}
     token = create_access_token(data, expires=expires)
     assert token is not None
     with pytest.raises(jose.exceptions.JWTError):
         payload = verify_access_token(token)
-    # user_id should not be present
+    # user_id is not present
     with pytest.raises(KeyError):
         user_id = payload["user_id"]
         print("payload['user_id'] =", user_id)

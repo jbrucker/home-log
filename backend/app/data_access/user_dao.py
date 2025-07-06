@@ -1,6 +1,5 @@
 """ORM operations for user objects.
 
-
 TODO:
    Encapsulate sqlalchemy exceptions in framework-independent exceptions.
    sqlalchemy.exc.IntegrityError -> IntegrityError or ValueError
@@ -33,7 +32,7 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
     user = models.User(**user_data.model_dump())  # **user_data.dict() is deprecated
     session.add(user)
     await session.commit()
-    await session.refresh(user)     # update user.id and user.created_at
+    await session.refresh(user)     # update the user.id and user.created_at
     return user
 
 
@@ -91,6 +90,7 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
     # TODO Get all fields from Schema instead of named fields
     user.email = user_data.email
     user.username = user_data.username
+    # updated_at is updated automatically by SqlAlchemy. See models.User
     user.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(user)
@@ -150,14 +150,14 @@ async def set_password(session: AsyncSession,
     if user_password:
         # update password of an existing user
         user_password.hashed_password = hashed_password
-        user_password.updated_at = datetime.now(timezone.utc)
     else:
         # create a new UserPassword referencing the user
         user_password = models.UserPassword(
-                        user_id=user_id,
-                        hashed_password=hashed_password,
-                        updated_at=datetime.now(timezone.utc)
+                            user_id=user_id,
+                            hashed_password=hashed_password
                         )
+    # updated_at is updated automatically by SqlAlchemy. See models.UserPassword
+    user_password.updated_at = datetime.now(timezone.utc)
     session.add(user_password)
     await session.commit()
     await session.refresh(user_password)

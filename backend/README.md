@@ -3,20 +3,26 @@
 The backend contains code for a REST Service that performs application logic and supplies/receives data to/from the front-end.
 
 
-Test:
+## Run a Local Test Server
+
 ```
+. ./bin/activate
 uvicorn app.main:app --reload
 ```
-- use a REST tool to access `/user/` endpoints.
-- access OpenAPI documentation
+Or invoke the `runserver.sh` script.
 
-Test Accounts
+- starts a server listening at <http://localhost:8000>
+- access OpenAPI documentation at `/docs` (<http://localhost:8000/docs>)
+- or use a REST tool to access endpoints
+
+### Test Accounts
 
 | username | email            | password |
 |----------|------------------|----------|
 | Jim      |jim@hackers.com   | hackme2  |
 | Harry    |harry@hackers.com | hackme2  | 
 | Sally    |sally@hackers.com | hackme2  |
+
 
 ## VS Code Configuration
 
@@ -33,7 +39,7 @@ On my Linux machine I added this to `.vscode/settings.json`:
     }
 }
 ```
-
+The "terminal.integrated.env.linux" setting is needed on my machine to avoid Python package not found errors for anything the `app` package (even though it has a `__init__.py` file).
 without setting `PYTHONPATH` I was getting module not found errors for `app`, even though it has a `__init__.py` file.
 
 ---
