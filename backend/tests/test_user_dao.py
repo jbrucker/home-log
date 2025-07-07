@@ -170,12 +170,10 @@ async def test_delete_user(session):
     deleted = await user_dao.delete_user(session, user_to_delete.id)
     assert deleted is not None
     assert deleted.email == user_to_delete.email, "Deleted wrong user."
-    # Verify user is deleted
-    ghost_user = await user_dao.get_user_by_id(session, user_to_delete.id)
-    assert ghost_user is None
+    # Verify user is *really* deleted
+    deleted_user = await user_dao.get_user_by_id(session, user_to_delete.id)
+    assert deleted_user is None
+    # Did not delete adjacent user
+    other_user = await user_dao.get_user_by_id(session, users[0].id)
+    assert other_user.email == users[0].email
 
-
-@pytest.mark.asyncio
-async def test_set_user_password(session):
-    """Can set a password for a user and it is saved in hashed form."""
-    pass

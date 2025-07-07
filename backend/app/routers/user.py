@@ -47,11 +47,12 @@ async def register_user(user_data: schemas.UserCreate,
                         current_user = Depends(oauth2.get_current_user)
                         ):
     """Persist a new user.
-       If success, return the user data and a `Location:` header containing the URL of the new entity.
+
+       :returns: the user data and a `Location:` header containing the URL of the new entity.
     """
     existing_user = await user_dao.get_user_by_email(session, user_data.email)
     if existing_user:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     user = await user_dao.create_user(session, user_data)
     # Add Location of new user
     location = request.url_for("get_user", user_id=str(user.id))  # reverse mapping
@@ -73,7 +74,9 @@ async def update_user(user_id: int, user_data: schemas.UserCreate,
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int, session: AsyncSession = Depends(db.get_session)):
+async def delete_user(user_id: int, 
+                      session: AsyncSession = Depends(db.get_session),
+                      current_user = Depends(oauth2.get_current_user)):
     """Delete a user by id.  Returns the data for the deleted user."""
     user = await user_dao.delete_user(session, user_id)
     if not user:

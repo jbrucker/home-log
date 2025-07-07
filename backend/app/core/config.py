@@ -3,6 +3,13 @@ from decouple import config
 # Note the async SQLite URL uses aiosqlite
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 
+# Maximum length for some string fields
+MAX_NAME = 60       # A descriptive name can be a bit long
+MAX_DESC = 80       # descriptions. For TEXT fields length is unlimited.
+MAX_EMAIL = 160     # Email address, as per
+MAX_ADDRESS = 160   # address or location
+MAX_UNIT_NAME = 20  # unit names like 'kWhr', 'deg-C', 'meters'
+
 # Clean way to create a database URL for Postgres
 """
 from sqlalchemy.engine import URL

@@ -87,7 +87,11 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
     user = await get_user_by_id(session, user_id)
     if not user:
         raise ValueError(f"No user found with id {user_id}")
-    # TODO Get all fields from Schema instead of named fields
+    # TODO Should we exclude unset fields?  It could make it impossible to "unset" an optional attribute.
+    #update_data = user_data.model_dump(exclude_unset=True)
+    #for field, value in update_data.items():
+    #    setattr(user, field, value)
+    # Old:
     user.email = user_data.email
     user.username = user_data.username
     # updated_at is updated automatically by SqlAlchemy. See models.User
@@ -114,7 +118,7 @@ async def get_user_password(session: AsyncSession,
 
 async def get_password(session: AsyncSession, 
                        user: models.User | int
-                      ) -> models.UserPassword | None:
+                       ) -> str | None:
     """Get a user's hashed password or None if no password.
     
     :param user: an instance of models.User or a user id value
@@ -173,6 +177,8 @@ async def delete_user(session: AsyncSession, user_id: int) -> models.User | None
     if user:
         await session.delete(user)
         await session.commit()
+        # set user.id= 0 to indicate not persisted
+        # but must also update test_user_dao
         return user
     return None
 

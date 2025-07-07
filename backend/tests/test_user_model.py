@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import pytest, pytest_asyncio
 from sqlalchemy.exc import IntegrityError
 from app.models import User
+from .base import as_utc_time, is_timezone_aware
 from .fixtures import db, session
 
 
@@ -92,7 +93,7 @@ async def test_update_user_email(session, user):
     assert last_update is not None, "Create user did not set updated_at"
     new_email = "newemail@example.com"
     user.email = new_email
-    await asyncio.sleep(1)  # seconds
+    await asyncio.sleep(0.5)  # seconds, to ensure updated_at > last_update
     session.add(user)
     await session.commit()
     updated_user = await session.get(User, user.id)
@@ -105,19 +106,9 @@ async def test_delete_user(session, user):
     """We can delete a user using the session."""
     # user is already persisted
     assert user.id > 0
+    user_id = user.id
     await session.delete(user)
     await session.commit()
-    deleted_user = await session.get(User, user.id)
+    deleted_user = await session.get(User, user_id)
     assert deleted_user is None
 
-
-def is_timezone_aware(dt: datetime) -> bool:
-    """Return True if argument is a datetime instance AND is timezone aware."""
-    assert isinstance(dt, datetime), "arg is not a datetime, it's a {type(dt).__name__}" 
-    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None
-
-def as_utc_time(dt: datetime) -> datetime:
-    """Convert datetime object to UTC time, if and only if it is timezone unaware."""
-    if is_timezone_aware(dt):
-        return dt
-    return dt.replace(tzinfo=timezone.utc)
