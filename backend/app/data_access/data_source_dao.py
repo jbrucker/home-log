@@ -62,9 +62,9 @@ async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> 
     :returns: list of matching entities, may be empty
     """
     stmt = select(models.DataSource)
-    if filters:
-        stmt = stmt.where(and_(*(getattr(models.DataSource, k) == v for k, v in filters.items())))
     all_conditions = list(conditions)
+    if filters:
+        all_conditions += [getattr(models.DataSource, k) == v for k, v in filters.items())))
     if all_conditions:
         stmt = stmt.where(and_(*all_conditions))
     result = await session.execute(stmt)
