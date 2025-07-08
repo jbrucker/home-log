@@ -10,7 +10,7 @@ from typing import Collection
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
-from sqlalchemy import select
+from sqlalchemy import select, and_
 
 from app import models, schemas
 from app.core import security
@@ -59,6 +59,22 @@ async def get_user_by_email(session: AsyncSession, email: str) -> models.User | 
     # .scalar_one_or_none() raises sqlalchemy.exc.MultipleResultsFound if more than one match.
     # Use result.first() if email may not be unique, but first() returns a Row not a User.
     return result.scalar_one_or_none()
+
+
+async def get_users_by(session: AsyncSession, **filters) -> list[models.User]:
+    """
+    Get users matching arbitrary filter criteria.
+    Usage: await get_users_by(session, email="foo@bar.com", username="Foo")
+    
+    :param filters: dict of User attribute to arbitrary values
+    :returns: list of matching entities, may be empty
+    """
+    stmt = select(models.User)
+    if filters:
+        conditions = [getattr(models.User, key) == value for key, value in filters.items()]
+        stmt = stmt.where(and_(*conditions))
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 
 async def get_users(session: AsyncSession, limit: int = 0) -> Collection[models.User]:

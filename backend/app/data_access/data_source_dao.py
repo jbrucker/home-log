@@ -7,7 +7,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
-from sqlalchemy import select
+from sqlalchemy import select, and_
 
 from app import models, schemas
 
@@ -52,16 +52,30 @@ async def get_data_source_by_id(session: AsyncSession, data_source_id: int) -> m
     return result
 
 
-async def get_data_source_by_owner(session: AsyncSession, user: models.User | int) -> list[models.DataSource] | None:
+async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> list[models.DataSource]:
+    """
+    Get data sources matching arbitrary filter criteria.
+    Usage: await get_data_sources_by(session, owner_id=11, name="Foo")
+    
+    :param filters: named parameters where names are model attributes, e.g. owner_id=11
+    :param conditions: S
+    :returns: list of matching entities, may be empty
+    """
+    stmt = select(models.DataSource)
+    if filters:
+        stmt = stmt.where(and_(*(getattr(models.DataSource, k) == v for k, v in filters.items())))
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def get_data_sources_by_owner(session: AsyncSession, user: models.User | int) -> list[models.DataSource] | None:
     """Get all the DataSources owned by a given user."""
     if isinstance(user, int):
         user_id = user
     else:
         user_id = user.id
-    # use joinedload for eager fetching of the `owner` references (a User)
-    stmt = select(models.DataSource).options(joinedload(models.DataSource.owner)).where(models.DataSource.owner_id == user_id)
-    result = await session.execute(stmt)
-    return result.scalars().all()
+    result = await get_data_sources_by(session, owner_id=user_id)
+    return result
 
 
 async def update_data_source(session: AsyncSession, data_source_id: int, 
