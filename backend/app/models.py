@@ -70,6 +70,9 @@ class User(Base):
                                          cascade="all, delete-orphan"
                                          )
 
+    def __str__(self) -> str:
+        return f"User {self.id} {self.username} <{self.email}>"
+
 
 class UserPassword(Base):
     """Store user's password as a hash. Only for locally authenticated users."""
@@ -108,7 +111,8 @@ class DataSource(Base):
     # Relationships (optional)
     owner = relationship("User", foreign_keys=[owner_id], backref="data_sources")
 
-
+    def __str__(self) -> str:
+        return f"DataSource {self.id} '{self.name}'  owner={self.owner_id} created {self.created_at}"
 
 
 # For testing. Normally you should do this in app/core/database.py 

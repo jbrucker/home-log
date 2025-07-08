@@ -65,6 +65,5 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
    - OpenAPI: `http://localhost:8000/docs`
    - Redoc: `http://localhost:8000/redoc`
 
-[Schema Creation: SQL or SqlAlchemy?](#schema-creation-sql-or-sqlalchemy)
 
-# Schema Creation: SQL or SqlAlchemy?
+---

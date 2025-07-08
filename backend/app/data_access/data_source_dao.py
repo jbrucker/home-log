@@ -58,12 +58,15 @@ async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> 
     Usage: await get_data_sources_by(session, owner_id=11, name="Foo")
     
     :param filters: named parameters where names are model attributes, e.g. owner_id=11
-    :param conditions: S
+    :param conditions: SqlAlchemy filter expressions
     :returns: list of matching entities, may be empty
     """
     stmt = select(models.DataSource)
     if filters:
         stmt = stmt.where(and_(*(getattr(models.DataSource, k) == v for k, v in filters.items())))
+    all_conditions = list(conditions)
+    if all_conditions:
+        stmt = stmt.where(and_(*all_conditions))
     result = await session.execute(stmt)
     return result.scalars().all()
 
