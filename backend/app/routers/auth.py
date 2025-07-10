@@ -1,6 +1,7 @@
 """Route handler to authenticate a User."""
 
 import logging
+from pathlib import Path
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException, Response
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
@@ -10,9 +11,19 @@ from app.core import database, security
 from app.data_access import user_dao
 from app.utils import jwt
 from app import schemas
+from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=['Authentication'])
 
+@router.get('/login', response_class=HTMLResponse)
+async def loginform():
+    """Return a login form in html."""
+    file_path = Path("app/forms/login.html")
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Login form {str(file_path.absolute())} not found"
+                            )
+    return file_path.read_text(encoding="utf-8")
 
 @router.post('/login', response_model=schemas.Token)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 

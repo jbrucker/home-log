@@ -4,22 +4,12 @@
 import pytest
 # TODO  Eliminate Framework dependency by defining generic Exceptions
 import sqlalchemy
+
 from app import models, schemas
 from app.data_access import user_dao
 from .fixtures import db, session
+from .utils import EMAIL_DOMAIN, create_users
 
-EMAIL_DOMAIN = "yahoo.com"
-
-async def create_users(howmany: int):
-    """Create multiple users.  Assumes database and User table already initialized."""
-    # TODO: Use same Session as the test method, or a separate Session?
-    async for session in db.get_session():
-        for n in range(1, howmany+1):
-            username = f"User{n}"
-            email = f"{username.lower()}@{EMAIL_DOMAIN}"
-            session.add(models.User(username=username, email=email))
-        await session.commit()
-    print(f"Added {n} users")
 
 @pytest.mark.asyncio
 async def test_create_user(session):
@@ -54,7 +44,7 @@ async def test_get_user_by_id(session):
 @pytest.mark.asyncio
 async def test_get_user_by_email(session):
     """get_user_by_email returns a User or None."""
-    await create_users(5)  # "User1", "User2", ...
+    await create_users(session, 5)  # "User1", "User2", ...
     # get each user
     for user_num in range(1,6):
         email = f"user{user_num}@{EMAIL_DOMAIN}"
@@ -116,7 +106,7 @@ async def test_update_user_nonexistent(session):
 @pytest.mark.asyncio
 async def test_update_user_email_unique_constraint(session):
     """Updating a user to an email that already exists should raise an IntegrityError."""
-    await create_users(2)
+    await create_users(session, 2)
     # Get both users
     #async with db.get_session() as session:
     users = await user_dao.get_users(session)
@@ -131,7 +121,7 @@ async def test_update_user_email_unique_constraint(session):
 @pytest.mark.asyncio
 async def test_get_all_users(session):
     """get_users should return all users in the database, ordered by id."""
-    await create_users(3)
+    await create_users(session, 3)
     #async with db.get_session() as session:
     users = await user_dao.get_users(session)
     assert len(users) == 3
@@ -145,13 +135,34 @@ async def test_get_all_users(session):
 @pytest.mark.asyncio
 async def test_get_users_with_limit(session):
     """get_users should respect the limit parameter."""
-    await create_users(10)
+    await create_users(session, 10)
     #async with db.get_session() as session:
-    users = await user_dao.get_users(session, limit=3)
-    assert len(users) == 3
+    users = await user_dao.get_users(session, limit=4)
+    assert len(users) == 4
     assert users[0].username == "User1"
     assert users[1].username == "User2"
     assert users[2].username == "User3"
+    assert users[3].username == "User4"
+
+@pytest.mark.asyncio
+async def test_get_users_with_offset_and_limit(session):
+    """get_users should respect the offset and limit parameters."""
+    await create_users(session, 20)
+    #async with db.get_session() as session:
+    users = await user_dao.get_users(session, offset=0, limit=2)
+    assert len(users) == 2
+    assert users[0].username == "User1"
+    assert users[1].username == "User2"
+    users = await user_dao.get_users(session, offset=5, limit=1)
+    assert len(users) == 1
+    assert users[0].username == "User6"
+    users = await user_dao.get_users(session, offset=10, limit=5)
+    assert len(users) == 5
+    assert users[0].username == "User11"
+    assert users[1].username == "User12"
+    assert users[2].username == "User13"
+    assert users[3].username == "User14"
+    assert users[4].username == "User15"
 
 @pytest.mark.asyncio
 async def test_get_users_may_be_empty(session):
@@ -162,10 +173,11 @@ async def test_get_users_may_be_empty(session):
 @pytest.mark.asyncio
 async def test_delete_user(session):
     """Can delete a user by id."""
-    await create_users(10)
+    await create_users(session, 10)
     users = await user_dao.get_users(session)
     # delete user #2
     user_to_delete = users[1]
+    assert user_to_delete.id > 0, "User does not have id"
     # delete_user returns the deleted user on success, None otherwise
     deleted = await user_dao.delete_user(session, user_to_delete.id)
     assert deleted is not None

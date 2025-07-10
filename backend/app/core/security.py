@@ -8,8 +8,6 @@ from argon2.exceptions import VerifyMismatchError
 # from passlib.context import CryptContext
 # from passlib.exceptions import PasslibHashingError, VerifyMismatchError
 
-
-# Configure Passlib to use Argon2
 pwd_context = PasswordHasher()
 
 

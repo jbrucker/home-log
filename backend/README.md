@@ -22,6 +22,7 @@ Or invoke the `runserver.sh` script.
 | Jim      |jim@hackers.com   | hackme2  |
 | Harry    |harry@hackers.com | hackme2  | 
 | Sally    |sally@hackers.com | hackme2  |
+| admin    |admin@localhost.com | MakeMyDay |
 
 
 ## VS Code Configuration

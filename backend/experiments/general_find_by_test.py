@@ -47,7 +47,7 @@ async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     return created_ids
 
 
-async def test_get_data_sources_by_date(session, user1, user2):
+async def run_get_data_sources_by_date(session, user1, user2):
     """Can use an expression to select datasources by owner and date range."""
     user1_ds_ids = await create_data_sources(20, user1)
     user2_ds_ids = await create_data_sources(20, user2)
@@ -72,7 +72,7 @@ async def test_get_data_sources_by_date(session, user1, user2):
     result = await dao.get_data_sources_by(session, owner_id=user1.id)
     print_results(result)
 
-    print(f"DS created between {start_date} and {end_date}")
+    input(f"All DS created between {start_date:%d-%m-%Y} and {end_date:%d-%m-%Y}...")
     # The test:
     result = await dao.get_data_sources_by(session,
                                            models.DataSource.created_at >= start_date,
@@ -81,15 +81,14 @@ async def test_get_data_sources_by_date(session, user1, user2):
     print_results(result)
 
     end_date = datetime(year, month, 4, tzinfo=timezone.utc)
+    input(f"DS owned by {user2} and created before {end_date:%d-%m-%Y}...")
     result = await dao.get_data_sources_by(session,
                                            models.DataSource.created_at <= end_date,
                                            owner_id=user2.id
                                            )
-    
-    print(f"DS owned by {user2} AND created before {end_date}")
     print_results(result)
 
-    print(f"Cars owned by {user2}")
+    input(f"Cars owned by {user2}...")
     result = await dao.get_data_sources_by(session,
                                            models.DataSource.name.contains("Car"),
                                            owner_id=user2.id
@@ -111,7 +110,7 @@ async def main():
     async for session in db.get_session():
         user1 = await create_user(session, "Lord of DAO", "lordofdao@generic.org")
         user2 = await create_user(session, "Imperial User", "trump@narcists.com")
-        await test_get_data_sources_by_date(session, user1, user2)
+        await run_get_data_sources_by_date(session, user1, user2)
 
 if __name__ == '__main__':
     asyncio.run(main())

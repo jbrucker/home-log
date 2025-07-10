@@ -65,13 +65,13 @@ class User(Base):
     # To make it bidirectional add backref=... 
     # or use back_populates=... on BOTH sides of the relationship
     user_password: Mapped["UserPassword"] = relationship("UserPassword", 
-                                         # backref=("user",uselist=False),
-                                         uselist=False,  
-                                         cascade="all, delete-orphan"
-                                         )
+                                    # backref=("user",uselist=False),
+                                    uselist=False,  
+                                    cascade="all, delete-orphan"
+                                    )
 
     def __str__(self) -> str:
-        return f"User {self.id} {self.username} <{self.email}>"
+        return f'id={self.id} "{self.username[:40]}" <{self.email}>'
 
 
 class UserPassword(Base):
@@ -112,7 +112,8 @@ class DataSource(Base):
     owner = relationship("User", foreign_keys=[owner_id], backref="data_sources")
 
     def __str__(self) -> str:
-        return f"DataSource {self.id} '{self.name}'  owner={self.owner_id} created {self.created_at}"
+        created_str = self.created_at.strftime("%d-%m-%Y") if self.created_at else "None"
+        return f'id={self.id} "{self.name[:40]}" owner={self.owner_id} created {created_str}'
 
 
 # For testing. Normally you should do this in app/core/database.py 

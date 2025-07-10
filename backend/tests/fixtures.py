@@ -1,6 +1,11 @@
-"""Fixtures for testing database and routers."""
+"""Fixtures for unit testing.
+
+   To verify fixtures are found use:  pytest --fixtures
+
+"""
 
 #from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
 import pytest, pytest_asyncio
@@ -9,7 +14,8 @@ from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
 from app import main, models
 
-AUTH_USER_PASSWORD = "Make My Day"
+AUTH_USER_EMAIL = "admin@localhost.com"
+AUTH_USER_PASSWORD = "MakeMyDay"
 
 """Use a temporary database for tests"""
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -18,6 +24,17 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 db.create_engine(TEST_DATABASE_URL)
 print("Database engine url", str(db.engine.url))
 assert str(db.engine.url) == TEST_DATABASE_URL
+
+
+# A session-level "fixture" for logging. scope="session" means it is used only once.
+@pytest.fixture(scope="session", autouse=True)
+def setup():
+    from .conftest import configure_logging
+    configure_logging()
+    logging.getLogger("fixtures").info("Logging initialized")
+    file = open("/tmp/pytest_config.txt", mode="a")
+    file.write("Running pytest session fixture 'setup'")
+    file.close()
 
 @pytest_asyncio.fixture()
 async def session():
@@ -34,7 +51,7 @@ async def session():
 @pytest_asyncio.fixture()
 async def auth_user(session):
     """Create a user for use in other tests."""
-    user = models.User(username="admin", email="root@localhost.com")
+    user = models.User(username="admin", email=AUTH_USER_EMAIL)
     session.add(user)
     await session.commit()
     await session.refresh(user)

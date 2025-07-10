@@ -1,5 +1,5 @@
 """ORM operations for DataSource objects.
-   The DAO do not perform authentication checks -- routes should do that.
+   The DAO do not perform authorization checks -- application or service layer should do that.
 """
 
 from datetime import datetime, timezone
@@ -7,19 +7,19 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
-from sqlalchemy import select, and_
 
 from app import models, schemas
+from app.data_access import base_dao
 
 logger = logging.getLogger(__name__)
 
 async def create_data_source(session: AsyncSession, 
-                             source_data: schemas.DataSourceCreate
+                             data: schemas.DataSourceCreate
                              ) -> models.DataSource:
     """Add a new data source to persistent storage, assigning an id and creation date.
 
     :param session: database connection "session" object
-    :param source_data: schema object containing attributes for a new data source
+    :param data: schema object containing attributes for a new data source
     :returns: a DataSource model instance with persisted values
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are missing or invalid (Note)
@@ -28,12 +28,7 @@ async def create_data_source(session: AsyncSession,
           save indicates an inconsistency between schema validators and 
           database requirements.
     """
-    data_source = models.DataSource(**source_data.model_dump())
-    session.add(data_source)
-    await session.commit()
-    await session.refresh(data_source)     # update the id and created_at
-    logger.info(f"Created DataSource id={data_source.id} owner_id={data_source.owner_id} name={data_source.name}")
-    return data_source
+    return await base_dao.create(models.DataSource, session, data)
 
 
 async def get_data_source_by_id(session: AsyncSession, data_source_id: int) -> models.DataSource | None:
@@ -43,13 +38,8 @@ async def get_data_source_by_id(session: AsyncSession, data_source_id: int) -> m
     """
     if not isinstance(data_source_id, int) or data_source_id <= 0:
         return None
-    # Another way:
-    # stmt = select(models.DataSource).where(models.DataSource.id == user_id)
-    # result = await session.execute(stmt)
-    # Return the first result or None if no match.
-    result = await session.get(models.DataSource, data_source_id, 
-                               options=[joinedload(models.DataSource.owner)])
-    return result
+    options = [joinedload(models.DataSource.owner)]
+    return await base_dao.get_by_id(models.DataSource, session, data_source_id, options=options)
 
 
 async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> list[models.DataSource]:
@@ -61,14 +51,7 @@ async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> 
     :param conditions: SqlAlchemy filter expressions
     :returns: list of matching entities, may be empty
     """
-    stmt = select(models.DataSource)
-    all_conditions = list(conditions)
-    if filters:
-        all_conditions += [getattr(models.DataSource, k) == v for k, v in filters.items())))
-    if all_conditions:
-        stmt = stmt.where(and_(*all_conditions))
-    result = await session.execute(stmt)
-    return result.scalars().all()
+    return await base_dao.find_by(models.DataSource, session, *conditions, **filters)
 
 
 async def get_data_sources_by_owner(session: AsyncSession, user: models.User | int) -> list[models.DataSource] | None:
@@ -77,8 +60,7 @@ async def get_data_sources_by_owner(session: AsyncSession, user: models.User | i
         user_id = user
     else:
         user_id = user.id
-    result = await get_data_sources_by(session, owner_id=user_id)
-    return result
+    return await base_dao.find_by(models.DataSource, session, owner_id=user_id)
 
 
 async def update_data_source(session: AsyncSession, data_source_id: int, 
@@ -109,13 +91,4 @@ async def delete_data_source(session: AsyncSession, data_source_id: int) -> mode
 
     :returns: data for the deleted object or None if no match.
     """
-    data_source = await get_data_source_by_id(session, data_source_id)
-    if not data_source:
-        logger.warning(f"Tried to delete non-existent DataSource id={data_source_id}")
-        return None
-    await session.delete(data_source)
-    await session.commit()
-    logger.info(f"Deleted DataSource id={data_source.id} name={data_source.name}")
-    # To indicate that the instance is no longer persisted, set id to None?
-    return data_source
-
+    return await base_dao.delete_by_id(models.DataSource, session, data_source_id)

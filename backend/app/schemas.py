@@ -17,10 +17,13 @@ class UserCreate(BaseModel):
 
 class User(UserCreate):
     """The complete User schema."""
-    # id: int
+    # For testing include id, for security omit it.
+    id: Optional[int] = None
     # In model classes, these default to current time
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
+    # computed variable
+    #password: Optional[str] = None
     # model_config replaces the Config inner-class in Pydantic 2.0
     model_config = ConfigDict(from_attributes=True)
 

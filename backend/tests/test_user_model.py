@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pytest, pytest_asyncio
 from sqlalchemy.exc import IntegrityError
 from app.models import User
-from .base import as_utc_time, is_timezone_aware
+from .utils import as_utc_time, is_timezone_aware
 from .fixtures import db, session
 
 

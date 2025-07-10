@@ -6,7 +6,6 @@ TODO:
 """
 
 from datetime import datetime, timezone
-from typing import Collection
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
@@ -14,10 +13,11 @@ from sqlalchemy import select, and_
 
 from app import models, schemas
 from app.core import security
+from app.data_access import base_dao
 
 
 async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
-    """Add a new user to persistent storage, assigning a user.id and creation date.
+    """Add a new user to persistent storage, assigning a user id and creation date.
 
     :param session: database connection "session" object
     :param user_data: schema object containing attributes for a new user entity
@@ -29,30 +29,25 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
           save indicates an inconsistency between schema validators and 
           database requirements.
     """
-    user = models.User(**user_data.model_dump())  # **user_data.dict() is deprecated
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)     # update the user.id and user.created_at
-    return user
+    return await base_dao.create(models.User, session, user_data)
 
 
 async def get_user_by_id(session: AsyncSession, user_id: int) -> models.User | None:
-    """Get a user from database using his id (primary key).
+    """Get a user from database using his id (primary key), and pre-fetched user_password relationship.
     
     :returns: models.User instance or None if no match for `user_id`
     """
     if not isinstance(user_id, int) or user_id <= 0:
         return None
-    # Another way:
-    # stmt = select(models.User).where(models.User.id == user_id)
-    # result = await session.execute(stmt)
-    # Return the first result or None if no match.
-    result = await session.get(models.User, user_id, 
-                               options=[joinedload(models.User.user_password)])
-    return result
+    options = [joinedload(models.User.user_password)]
+    return await base_dao.get_by_id(models.User, session, user_id, options=options)
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> models.User | None:
+    """Get a user from database using his email, and pre-fetched user_password relationship.
+    
+    :returns: models.User instance or None if no match for `user_id`
+    """
     stmt = select(models.User).options(joinedload(models.User.user_password)).where(models.User.email == email)
     result = await session.execute(stmt)
     # Return the first result or None if no match.
@@ -61,36 +56,29 @@ async def get_user_by_email(session: AsyncSession, email: str) -> models.User | 
     return result.scalar_one_or_none()
 
 
-async def get_users_by(session: AsyncSession, **filters) -> list[models.User]:
+async def get_users_by(session: AsyncSession, *conditions, **filters) -> list[models.User]:
     """
     Get users matching arbitrary filter criteria.
     Usage: await get_users_by(session, email="foo@bar.com", username="Foo")
     
     :param filters: dict of User attribute to arbitrary values
+    :param conditions: SqlAlchemy filter expressions
     :returns: list of matching entities, may be empty
     """
-    stmt = select(models.User)
-    if filters:
-        conditions = [getattr(models.User, key) == value for key, value in filters.items()]
-        stmt = stmt.where(and_(*conditions))
-    result = await session.execute(stmt)
-    return result.scalars().all()
+    return await base_dao.find_by(models.User, session, *conditions, **filters)
 
 
-async def get_users(session: AsyncSession, limit: int = 0) -> Collection[models.User]:
+async def get_users(session: AsyncSession, offset: int = 0, limit: int = 0) -> list[models.User]:
     """Get all users, ordered by user.id.
 
     This method does **not** eagerly load user_password relations. 
     For access to a user's password use `get_user_by_id` or `get_user_password`.
 
     :param limit: max number of values to return, default is unlimited
-    :returns: collection of user objects. May be empty.
+    :param offset: start returning users after skipping this many initial records
+    :returns: list of user objects. May be empty.
     """
-    stmt = select(models.User).order_by(models.User.id)
-    if limit > 0:
-        stmt = stmt.limit(limit)
-    result = await session.execute(stmt)
-    return result.scalars().all()
+    return await base_dao.get_all(models.User, session, offset=offset, limit=limit)
 
 
 async def update_user(session: AsyncSession, user_id: int, user_data: schemas.UserCreate) -> models.User | None:
@@ -115,6 +103,7 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
     await session.commit()
     await session.refresh(user)
     return user
+
 
 async def get_user_password(session: AsyncSession, 
                             user: models.User | int
@@ -157,7 +146,7 @@ async def set_password(session: AsyncSession,
 
     :param user: a models.User or user id (int) of a User 
     :param password: plain text of the new password
-    :returns: UserPassword of the updated or added password
+    :returns: UserPassword with the updated password
     :raises ValueError: If no User with the given user_id value
     """
     user_id = user if isinstance(user, int) else user.id
@@ -168,7 +157,7 @@ async def set_password(session: AsyncSession,
 
     hashed_password = security.hash_password(password)
     if user_password:
-        # update password of an existing user
+        # update existing password
         user_password.hashed_password = hashed_password
     else:
         # create a new UserPassword referencing the user
@@ -189,12 +178,4 @@ async def delete_user(session: AsyncSession, user_id: int) -> models.User | None
 
     :returns: data for the deleted user or None if no matching user.
     """
-    user = await get_user_by_id(session, user_id)
-    if user:
-        await session.delete(user)
-        await session.commit()
-        # set user.id= 0 to indicate not persisted
-        # but must also update test_user_dao
-        return user
-    return None
-
+    return await base_dao.delete_by_id(models.User, session, user_id)

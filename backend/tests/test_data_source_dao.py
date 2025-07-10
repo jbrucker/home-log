@@ -5,16 +5,11 @@ import logging
 import pytest, pytest_asyncio
 from app import models, schemas
 from app.data_access import data_source_dao as dao
-from .base import as_utc_time
+from .utils import as_utc_time
 from .fixtures import db, session
 
-logname = str(__name__)
-while (n := logname.find(".")) > 0:
-    logname = logname[n+1:]
-logfile = logname + ".log"
-logging.basicConfig(filename=logfile, level=logging.INFO,
-                    format='%(levelname)s %(name)s - %(message)s')
-logger = logging.getLogger(logname)
+
+logger = logging.getLogger(__name__)
 
 #def pytest_runtest_logreport(report):
 #    if report.when == "call":

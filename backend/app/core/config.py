@@ -6,7 +6,7 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 # Maximum length for some string fields
 MAX_NAME = 60       # A descriptive name can be a bit long
 MAX_DESC = 80       # descriptions. For TEXT fields length is unlimited.
-MAX_EMAIL = 160     # Email address, as per
+MAX_EMAIL = 160     # Email address. Pydantic limit is 64+1+67 chars.
 MAX_ADDRESS = 160   # address or location
 MAX_UNIT_NAME = 20  # unit names like 'kWhr', 'deg-C', 'meters'
 
@@ -29,12 +29,9 @@ class Settings:
     def __init__(self, database_url:str = None):
         self.database_url = database_url if database_url else config("DATABASE_URL")
 
-        # for JWT tokens
-        # Recommended algorithms
-        # "HS256" - HMAC + SHA256 - Symmetric key algorithm
-        # "ES256" - Asymmetric, elliptic curve algorithm (faster than RSA)
+        # Hashing algorithm for JWT tokens. Prefer "HS256" = HMAC + SHA256 Symmetric key algorithm
         self.jwt_algorithm = config("JWT_ALGORITHM", default="HS256")
-        # "HS256" - generate secret key using one of these:
+        # For "HS256" - generate secret key using one of these:
         # os.urandom(32) 
         # secrets.token_hex(32)
         # Shell: `openssl rand --hex 32`
