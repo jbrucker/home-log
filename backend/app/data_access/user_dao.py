@@ -16,7 +16,7 @@ from app.core import security
 from app.data_access import base_dao
 
 
-async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
+async def create(session: AsyncSession, user_data: schemas.UserCreate) -> models.User:
     """Add a new user to persistent storage, assigning a user id and creation date.
 
     :param session: database connection "session" object
@@ -32,7 +32,7 @@ async def create_user(session: AsyncSession, user_data: schemas.UserCreate) -> m
     return await base_dao.create(models.User, session, user_data)
 
 
-async def get_user_by_id(session: AsyncSession, user_id: int) -> models.User | None:
+async def get_user(session: AsyncSession, user_id: int) -> models.User | None:
     """Get a user from database using his id (primary key), and pre-fetched user_password relationship.
     
     :returns: models.User instance or None if no match for `user_id`
@@ -56,19 +56,8 @@ async def get_user_by_email(session: AsyncSession, email: str) -> models.User | 
     return result.scalar_one_or_none()
 
 
-async def get_users_by(session: AsyncSession, *conditions, **filters) -> list[models.User]:
-    """
-    Get users matching arbitrary filter criteria.
-    Usage: await get_users_by(session, email="foo@bar.com", username="Foo")
-    
-    :param filters: dict of User attribute to arbitrary values
-    :param conditions: SqlAlchemy filter expressions
-    :returns: list of matching entities, may be empty
-    """
-    return await base_dao.find_by(models.User, session, *conditions, **filters)
 
-
-async def get_users(session: AsyncSession, offset: int = 0, limit: int = 0) -> list[models.User]:
+async def get_users(session: AsyncSession, limit: int = 0, offset: int = 0) -> list[models.User]:
     """Get all users, ordered by user.id.
 
     This method does **not** eagerly load user_password relations. 
@@ -80,6 +69,25 @@ async def get_users(session: AsyncSession, offset: int = 0, limit: int = 0) -> l
     """
     return await base_dao.get_all(models.User, session, offset=offset, limit=limit)
 
+async def find_users(session: AsyncSession,  
+                     *conditions, 
+                     **filters) -> list[models.User]:
+    """
+    Get users matching arbitrary filter criteria.
+    Usage: await find_users(session, email="foo@bar.com", username="Foo")
+    
+    :param conditions: SqlAlchemy filter expressions (e.g. models.User.id.
+    :param filters: dict of User attribute to arbitrary values (e.g. email="foo@bar.com")
+    `filters` may include `limit=n` and `offset=m` to limit and paginate results (see get_users)
+    
+    :returns: list of matching entities, may be empty
+
+    Example usage:
+    await find_users(session, models.User.is_active == True, email="foo@bar.com")
+    """
+    
+    return await base_dao.find_by(models.User, session, *conditions, **filters)
+
 
 async def update_user(session: AsyncSession, user_id: int, user_data: schemas.UserCreate) -> models.User | None:
     """Update the data for an existing user, identified by `user_id`.
@@ -88,7 +96,7 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
        :param user_data: new data for the user. All fields are in user_data are used.
        :raises ValueError: if no persisted User with the given `user_id`
     """
-    user = await get_user_by_id(session, user_id)
+    user = await get_user(session, user_id)
     if not user:
         raise ValueError(f"No user found with id {user_id}")
     # TODO Should we exclude unset fields?  It could make it impossible to "unset" an optional attribute.

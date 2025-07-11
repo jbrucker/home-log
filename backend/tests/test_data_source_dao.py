@@ -95,7 +95,7 @@ async def test_get_data_source_by_id(session, ds_data, user1):
     # create a few more
     await create_data_sources(4, user1)
     # fetch a particular one
-    result = await dao.get_data_source_by_id(session, ds.id)
+    result = await dao.get_data_source(session, ds.id)
     assert result is not None
     assert result.id == ds.id
     assert result.name == ds_data.name
@@ -107,17 +107,17 @@ async def test_get_data_source_by_id_includes_owner(session, ds_data, user1):
     # Call the DAO to create the data source
     ds = await dao.create_data_source(session, ds_data)
     # fetch a particular one
-    result = await dao.get_data_source_by_id(session, ds.id)
+    result = await dao.get_data_source(session, ds.id)
     assert isinstance(result.owner, models.User)
     assert result.owner.email == user1.email
 
 @pytest.mark.asyncio
 async def test_get_data_source_by_id_not_found(session, user1):
     # initially no DataSources in persistence
-    result = await dao.get_data_source_by_id(session, 99999)
+    result = await dao.get_data_source(session, 99999)
     assert result is None
     ids = await create_data_sources(10, user1)
-    result = await dao.get_data_source_by_id(session, 99999)
+    result = await dao.get_data_source(session, 99999)
     assert result is None
 
 @pytest.mark.asyncio
@@ -279,7 +279,7 @@ async def test_delete_data_source(session, user1):
     assert deleted is not None
     #assert deleted.id == ds.id
     # Should not be found anymore
-    result = await dao.get_data_source_by_id(session, ds_id)
+    result = await dao.get_data_source(session, ds_id)
     assert result is None
 
 @pytest.mark.asyncio

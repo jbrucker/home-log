@@ -1,0 +1,93 @@
+"""REST endpoints for user.
+
+   To declare a response model used to serialize the return value, use a schema class not a model class.
+"""
+
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import status  # for HTTP status codes. Can alternatively use http.HTTPStatus.
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import db
+from app import schemas
+from app.data_access import data_source_dao
+from app.utils import oauth2
+
+# add option prefix="/source" to factor out path prefix.
+router = APIRouter(tags=["data source"])  
+
+
+@router.get("/sources")
+async def get_data_sources(
+                    limit: int = Query(20, ge=1, le=100),
+                    offset: int = Query(0, ge=0),
+                    session: AsyncSession = Depends(db.get_session),
+                    current_user = Depends(oauth2.get_current_user)) -> list[schemas.DataSource]:
+    """Get data sources owned by current user, up to specified `limit`.
+    
+    :param limit: maximum number of sources to return.  Use 0 for unlimited.
+    :param offset: number of sources (ordered by id) to skip before first result returned.
+    """
+    owner_id = current_user.id
+    sources = await data_source_dao.get_data_sources_by_owner(session, limit=limit, offset=offset, owner_id=owner_id)
+    return sources
+
+
+# TODO Add current_user and only get a source owned by current user
+@router.get("/sources/{source_id}")
+async def get_data_source(source_id: int, session: AsyncSession = Depends(db.get_session)) -> schemas.DataSource:
+    """Get a data source with the matching id."""
+    result = await data_source_dao.get_data_source(session, source_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"DataSource id {source_id} not found")
+    return result
+
+
+@router.post("/sources", status_code=status.HTTP_201_CREATED, response_model=schemas.DataSource)
+async def create_source(data: schemas.DataSourceCreate,
+                        request: Request,
+                        response: Response,
+                        session: AsyncSession = Depends(db.get_session),
+                        current_user = Depends(oauth2.get_current_user)
+                        ):
+    """Persist a new data source, owned by the currently authenticated user.
+
+       :returns: the source data and a `Location:` header containing the URL of the new entity.
+    """
+    # Currently there are no uniqueness constraints on data sources.
+    try:
+        data.owner_id = current_user.id
+        result = await data_source_dao.create_data_source(session, data)
+    except ValueError as ex:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail="Invalid data for user. Exception: {ex}")
+
+    # Add Location of new user - "url_for" performs reverse mapping
+    location = request.url_for("get_data_source", source_id=str(result.id))
+    response.headers["Location"] = str(location)
+    # result is serialized automatically by FastAPI
+    return result
+
+
+@router.put("/sources/{source_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.DataSource)
+async def update_source(source_id: int, data: schemas.DataSourceCreate, 
+                      session: AsyncSession = Depends(db.get_session),
+                      current_user = Depends(oauth2.get_current_user)
+                     ):
+    """Update the data for an existing user, using the `source_id` to identify the user to modify."""
+    result = await data_source_dao.get_data_source(session, source_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No user with id {source_id}")
+    return await data_source_dao.update_data_source(session, source_id=source_id, data=data)
+
+
+@router.delete("/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_source(source_id: int, 
+                      session: AsyncSession = Depends(db.get_session),
+                      current_user = Depends(oauth2.get_current_user)):
+    """Delete a data source by id.  Returns the data for the deleted item."""
+    logging.getLogger(__name__).info(f"delete_source source_id {source_id} by {str(current_user)}")
+    assert source_id > 0
+    result = await data_source_dao.delete_user(session, source_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No data source with id {source_id}")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app import models
 
 # Email domain for users created by create_users()
-EMAIL_DOMAIN = "yahoo.com"
+EMAIL_DOMAIN = "test.domain.me"
 
 def is_timezone_aware(dt: datetime) -> bool:
     """Return True if argument is a datetime instance AND is timezone aware."""
@@ -18,13 +18,13 @@ def as_utc_time(dt: datetime) -> datetime:
     return dt.replace(tzinfo=timezone.utc)
 
 
-async def create_users(session, howmany: int):
+async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
     """Create multiple users.  Assumes database and User table already initialized."""
     # TODO: Use same Session as the test method, or a separate Session?
     
     for n in range(1, howmany+1):
         username = f"User{n}"
-        email = f"{username.lower()}@{EMAIL_DOMAIN}"
+        email = f"{username.lower()}@{email_domain}"
         session.add(models.User(username=username, email=email))
     await session.commit()
     print(f"Added {n} users")

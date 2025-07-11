@@ -31,7 +31,7 @@ async def create_data_source(session: AsyncSession,
     return await base_dao.create(models.DataSource, session, data)
 
 
-async def get_data_source_by_id(session: AsyncSession, data_source_id: int) -> models.DataSource | None:
+async def get_data_source(session: AsyncSession, data_source_id: int) -> models.DataSource | None:
     """Get a data source from database using his id (primary key).
     
     :returns: models.DataSource instance or None if no match for id
@@ -42,13 +42,16 @@ async def get_data_source_by_id(session: AsyncSession, data_source_id: int) -> m
     return await base_dao.get_by_id(models.DataSource, session, data_source_id, options=options)
 
 
-async def get_data_sources_by(session: AsyncSession, *conditions, **filters) -> list[models.DataSource]:
+async def get_data_sources_by(session: AsyncSession,
+                              *conditions, 
+                              **filters) -> list[models.DataSource]:
     """
     Get data sources matching arbitrary filter criteria.
     Usage: await get_data_sources_by(session, owner_id=11, name="Foo")
     
-    :param filters: named parameters where names are model attributes, e.g. owner_id=11
     :param conditions: SqlAlchemy filter expressions
+    :param filters: named parameters where names are model attributes, e.g. owner_id=11
+    `filters` may include `limit=(int)n` and/or `offset=(int)m` named variables
     :returns: list of matching entities, may be empty
     """
     return await base_dao.find_by(models.DataSource, session, *conditions, **filters)
@@ -71,7 +74,7 @@ async def update_data_source(session: AsyncSession, data_source_id: int,
        :param source_data: new data for the update. Only fields with values are updated.
        :raises ValueError: if no persisted DataSource with the given id
     """
-    data_source = await get_data_source_by_id(session, data_source_id)
+    data_source = await get_data_source(session, data_source_id)
     if not data_source:
         logger.warning(f"Attempt to update non-existent DataSource id={data_source_id}")
         raise ValueError(f"No data source found with id {data_source_id}")

@@ -39,7 +39,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
     if not user_id:
         raise credentials_exception(detail="Invalid token. Missing user id.")
     
-    user = await user_dao.get_user_by_id(session, user_id=user_id)
+    user = await user_dao.get_user(session, user_id=user_id)
     return user
 
 # TODO Consider eliminating this function

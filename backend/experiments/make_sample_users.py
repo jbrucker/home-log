@@ -42,7 +42,7 @@ async def insert_sample_users(user_data: list[dict[str,Any]]):
                 print(f"User {user.username} <{user.email}> already exists in database")
             else:
                 print(f"Add {new_user.username} <{new_user.email}> to Users")
-                user = await user_dao.create_user(session, new_user)
+                user = await user_dao.create(session, new_user)
                 print(f"Added {user} at {user.created_at}")
             # Set password
             try:

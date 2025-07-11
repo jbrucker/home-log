@@ -13,7 +13,7 @@ from .fixtures import db, session
 async def test_new_user_password(session):
     """A newly created user does not have a password."""
     new_user = schemas.UserCreate(email="harry@hackers.com", username="Harry")
-    user = await user_dao.create_user(session, new_user)
+    user = await user_dao.create(session, new_user)
     # verify user was persisted
     assert isinstance(user, models.User)
     # model should be fully populated
@@ -31,7 +31,7 @@ async def test_new_user_password(session):
 async def test_set_password(session):
     """Can set the password for a user in database and hashed password passes verification."""
     new_user = schemas.UserCreate(email="harry@hackers.com", username="Harry")
-    user = await user_dao.create_user(session, new_user)
+    user = await user_dao.create(session, new_user)
     # verify user was persisted
     assert isinstance(user, models.User)
     assert user.id > 0
@@ -48,7 +48,7 @@ async def test_set_password(session):
 async def test_get_user_password(session):
     """Can get the UserPassword object for a User by doing a query."""
     new_user = schemas.UserCreate(email="sally@hackers.com", username="Sally")
-    user = await user_dao.create_user(session, new_user)
+    user = await user_dao.create(session, new_user)
     # set a password and then get the hashed password
     plain_password = "Dont call me Sally"
     await user_dao.set_password(session, user.id, plain_password)
@@ -68,12 +68,12 @@ async def test_get_user_password(session):
 async def test_user_password_property(session):
     """Can get the UserPassword for a User using a relationship field defined in User model."""
     new_user = schemas.UserCreate(email="sally@hackers.com", username="Sally")
-    user = await user_dao.create_user(session, new_user)
+    user = await user_dao.create(session, new_user)
     # set a password and then get the hashed password
     plain_password = "Dont call me Sally"
     await user_dao.set_password(session, user.id, plain_password)
     # Important! Get the user by id to force eager loading of relationship
-    user = await user_dao.get_user_by_id(session, user.id)
+    user = await user_dao.get_user(session, user.id)
     # user.user_password refers to the related UserPassword object
     assert user.user_password is not None
     assert isinstance(user.user_password, models.UserPassword), f"get_user_password return a {type(user.user_password).__name__}"

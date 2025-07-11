@@ -5,7 +5,7 @@ import logging
 from typing import Any, Type
 from sqlalchemy.ext.asyncio import AsyncSession
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
-from sqlalchemy import select, and_
+from sqlalchemy import Select, select, and_
 
 from app import models, schemas
 from app.core.database import Base
@@ -53,33 +53,36 @@ async def get_by_id(model_class: Type[Base], session: AsyncSession, model_id: An
 
 
 # TODO Add an 'order_by' parameter
+# TODO Eliminate this function and use find_by instead.
 async def get_all(model_class: Type[Base], session: AsyncSession, 
-                  offset: int = 0, limit: int = 0) -> list[Base]:
+                  limit: int = 0, offset: int = 0) -> list[Base]:
     """Get all entities, ordered by id attribute.
 
     This method does **not** eagerly load relationships. 
 
     :param limit: max number of values to return, default is unlimited
-    :param skip: start returning users after skipping this many initial records
+    :param offset: start returning entities after skipping this many initial records
     :returns: list of entities from model_class. May be empty.
     """
     stmt = select(model_class).order_by(model_class.id)
-    if offset > 0:
-        stmt = stmt.offset(offset)
-    if limit > 0:
-        stmt = stmt.limit(limit)
-    result = await session.execute(stmt)
+    result = await session.execute(paginate(stmt, limit, offset))
     return result.scalars().all()
 
-# TODO Add 'offset=offset' and 'limit=n', with tests
-async def find_by(model_class: Type[Base], session: AsyncSession, *conditions, **filters) -> list:
+
+async def find_by(model_class: Type[Base], session: AsyncSession, 
+                  *conditions,
+                  limit: int = 0, 
+                  offset: int = 0,
+                  **filters) -> list:
     """
     Get persisted instances of `model_class` matching arbitrary filter criteria.
-    Usage: await get_data_sources_by(models.User, session, owner_id=11, name="Foo")
+    Usage: await find_by(models.User, session, User.created_at<somedate, limit=10, username="Foo")
     
     :param model_class: the *class* of the model type, e.g. models.User
     :param filters: named parameters where names are model attributes, e.g. owner_id=11
-    :param conditions: SqlAlchemy filter expressions, e.g. models.User.email.contains("gmail.com")
+    :param limit: max number of values to return, default is unlimited
+    :param offset: start returning matches after skipping this many initial matching records
+    :param conditions: SqlAlchemy select expressions, e.g. models.User.email.contains("gmail.com")
     :returns: list of matching entities, may be empty
     """
     stmt = select(model_class)
@@ -89,7 +92,10 @@ async def find_by(model_class: Type[Base], session: AsyncSession, *conditions, *
                            for key, value in filters.items() ]
     if all_conditions:
         stmt = stmt.where(and_(*all_conditions))
-    result = await session.execute(stmt)
+    # Apply ordering after WHERE
+    stmt = stmt.order_by(model_class.id)
+    # Finally apply pagination
+    result = await session.execute(paginate(stmt, limit, offset))
     return result.scalars().all()
 
 
@@ -108,4 +114,14 @@ async def delete_by_id(model_class: Type[Base], session: AsyncSession, entity_id
     await session.commit()
     logger.info(f"Deleted {model_name} {str(result)}")
     return result
-    
+
+def paginate(stmt: Select, limit: int = 0, offset: int = 0) -> Select:
+    """Apply options to paginate result of a Select statement.
+       The statement should already contain a `.order_by` clause
+       for the desired ordering.
+    '"""
+    if offset > 0:
+        stmt = stmt.offset(offset)
+    if limit > 0:
+        stmt = stmt.limit(limit)
+    return stmt
