@@ -2,7 +2,6 @@
    Requires pytest-asyncio be installed for async support.
 """
 import pytest
-# TODO  Eliminate Framework dependency by defining generic Exceptions
 import sqlalchemy
 
 from app import models, schemas

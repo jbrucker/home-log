@@ -12,7 +12,8 @@ import pytest, pytest_asyncio
 from app.core import security
 from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
-from app import main, models
+from app import main, models, schemas
+from app.data_access import user_dao
 
 AUTH_USER_EMAIL = "admin@localhost.com"
 AUTH_USER_PASSWORD = "MakeMyDay"
@@ -31,10 +32,11 @@ assert str(db.engine.url) == TEST_DATABASE_URL
 def setup():
     from .conftest import configure_logging
     configure_logging()
-    logging.getLogger("fixtures").info("Logging initialized")
-    file = open("/tmp/pytest_config.txt", mode="a")
-    file.write("Running pytest session fixture 'setup'")
-    file.close()
+    logging.getLogger("fixtures").info("Logging initialized by setup() fixture")
+    # Touch a file as evidence that setup was actually invoked
+    # with open("/tmp/pytest_config.txt", mode="a") as file:
+    #     file.write("Running pytest session fixture 'setup'")
+
 
 @pytest_asyncio.fixture()
 async def session():
@@ -63,17 +65,37 @@ async def auth_user(session):
     await session.commit()
     return user
 
+
 @pytest.fixture()
 async def async_client():
-    """Async test fixture for client -- doesn't work as FastAPI test client.
+    """Async test fixture for client. DOES NOT WORK as FastAPI test client.
        Use the `client` fixture instead.
     """
     from httpx import AsyncClient
     async with AsyncClient(app=main.app) as client:
         yield client
 
+
 @pytest.fixture()
 def client():
     """Test fixture for calls to FastAPI route endpoints."""
     #main.app.dependency_overrides[get_session] = db.get_session
     yield TestClient(main.app)
+
+
+@pytest_asyncio.fixture()
+async def alexa(session):
+    """Test fixture for a user entity named Alexa."""
+    new_user = schemas.UserCreate(email="alexa@amazon.com", username="Alexa")
+    user = await user_dao.create(session, new_user) 
+    assert user.id > 0, "Persisted user should have id > 0"
+    return user
+
+
+@pytest_asyncio.fixture()
+async def sally(session):
+    """Test fixture for a user entity named Sally."""
+    new_user = schemas.UserCreate(email="sally@yahoo.com", username="Sally")
+    user = await user_dao.create(session, new_user)
+    assert user.id > 0, "Persisted user should have id > 0"
+    return user

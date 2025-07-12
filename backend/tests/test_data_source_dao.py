@@ -147,8 +147,8 @@ async def test_get_data_source_by_owner(session, user1, user2):
             owner_id=user2.id
         )
     )
-    user1_sources = await dao.get_data_sources_by_owner(session, user1)
-    user2_sources = await dao.get_data_sources_by_owner(session, user2.id)
+    user1_sources = await dao.get_data_sources_by(session, owner_id=user1.id)
+    user2_sources = await dao.get_data_sources_by(session, owner_id=user2.id)
     assert len(user1_sources) == 2
     assert all(ds.owner_id == user1.id for ds in user1_sources)
     assert len(user2_sources) == 1
@@ -173,7 +173,7 @@ async def test_get_data_source_for_owner_with_none(session, user1, user2):
             owner_id=user1.id
         )
     )
-    user2_sources = await dao.get_data_sources_by_owner(session, user2.id)
+    user2_sources = await dao.get_data_sources_by(session, owner_id=user2.id)
     assert isinstance(user2_sources, list)
     assert len(user2_sources) == 0
 

@@ -9,7 +9,7 @@ from fastapi import status  # for HTTP status codes. Can alternatively use http.
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import schemas
-from app.data_access import data_source_dao
+from app.data_access import data_source_dao, user_dao
 from app.utils import oauth2
 
 # add option prefix="/source" to factor out path prefix.
@@ -28,7 +28,7 @@ async def get_data_sources(
     :param offset: number of sources (ordered by id) to skip before first result returned.
     """
     owner_id = current_user.id
-    sources = await data_source_dao.get_data_sources_by_owner(session, limit=limit, offset=offset, owner_id=owner_id)
+    sources = await data_source_dao.get_data_sources_by(session, owner_id=owner_id, limit=limit, offset=offset)
     return sources
 
 
@@ -59,9 +59,9 @@ async def create_source(data: schemas.DataSourceCreate,
         result = await data_source_dao.create_data_source(session, data)
     except ValueError as ex:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                            detail="Invalid data for user. Exception: {ex}")
+                            detail="Invalid data for data source. Exception: {ex}")
 
-    # Add Location of new user - "url_for" performs reverse mapping
+    # Add Location of new user. "url_for" performs reverse mapping
     location = request.url_for("get_data_source", source_id=str(result.id))
     response.headers["Location"] = str(location)
     # result is serialized automatically by FastAPI
@@ -69,14 +69,26 @@ async def create_source(data: schemas.DataSourceCreate,
 
 
 @router.put("/sources/{source_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.DataSource)
-async def update_source(source_id: int, data: schemas.DataSourceCreate, 
-                      session: AsyncSession = Depends(db.get_session),
-                      current_user = Depends(oauth2.get_current_user)
-                     ):
-    """Update the data for an existing user, using the `source_id` to identify the user to modify."""
+async def update_source(source_id: int, 
+                        data: schemas.DataSourceCreate, 
+                        session: AsyncSession = Depends(db.get_session),
+                        current_user = Depends(oauth2.get_current_user)
+                        ):
+    """Update the data for an existing source, using the `source_id` to identify the entity to modify."""
     result = await data_source_dao.get_data_source(session, source_id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No user with id {source_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                            detail=f"No data source with id {source_id}")
+    # Cannot modify another person's DataSource
+    if current_user.id != result.owner_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
+                            detail="Cannot modify data source you don't own")
+    # May change ownership to another user, but owner_id must exist
+    if data.owner_id and data.owner_id != current_user.id:
+        user = user_dao.get_user(session, data.owner_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                                detail=f"Owner id {data.owner_id} does not exist")
     return await data_source_dao.update_data_source(session, source_id=source_id, data=data)
 
 
@@ -87,6 +99,12 @@ async def delete_source(source_id: int,
     """Delete a data source by id.  Returns the data for the deleted item."""
     logging.getLogger(__name__).info(f"delete_source source_id {source_id} by {str(current_user)}")
     assert source_id > 0
+    data_source = data_source_dao.get_data_source(session,source_id)
+    if not data_source:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if data_source.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"You do not have authorization to delete data source {source_id}")
     result = await data_source_dao.delete_user(session, source_id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No data source with id {source_id}")

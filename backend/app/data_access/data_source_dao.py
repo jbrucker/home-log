@@ -57,15 +57,6 @@ async def get_data_sources_by(session: AsyncSession,
     return await base_dao.find_by(models.DataSource, session, *conditions, **filters)
 
 
-async def get_data_sources_by_owner(session: AsyncSession, user: models.User | int) -> list[models.DataSource] | None:
-    """Get all the DataSources owned by a given user."""
-    if isinstance(user, int):
-        user_id = user
-    else:
-        user_id = user.id
-    return await base_dao.find_by(models.DataSource, session, owner_id=user_id)
-
-
 async def update_data_source(session: AsyncSession, data_source_id: int, 
                              source_data: schemas.DataSourceCreate) -> models.DataSource | None:
     """Update the data for an existing data source, identified by `data_source_id`.

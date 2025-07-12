@@ -5,6 +5,12 @@ from app import models
 # Email domain for users created by create_users()
 EMAIL_DOMAIN = "test.domain.me"
 
+
+def auth_headers(token: str) -> dict:
+    """Return authorization headers containing the given token."""
+    return {"Authorization": f"Bearer {token}"}
+
+
 def is_timezone_aware(dt: datetime) -> bool:
     """Return True if argument is a datetime instance AND is timezone aware."""
     if not isinstance(dt, datetime):
@@ -28,3 +34,17 @@ async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
         session.add(models.User(username=username, email=email))
     await session.commit()
     print(f"Added {n} users")
+
+
+    async def create_data_source(session, owner: models.User = None, **data) -> models.DataSource:
+        """
+        Create a DataSource instance using the provided by key-value parameters (**data).
+        Assumes the 'models.DataSource' fields match keys in 'data'.
+        """
+        if owner:
+            data["owner_id"] = owner.id
+        data_source = models.DataSource(**data)
+        session.add(data_source)
+        await session.commit()
+        return data_source
+    

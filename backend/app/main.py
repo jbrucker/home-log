@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
 from app import models
-from app.routers import auth, user
+from app.routers import auth, data_source, user
 from app.core.database import Base, db
 
 
@@ -38,4 +38,4 @@ app = FastAPI(lifespan=lifecycle)
 
 app.include_router(user.router)
 app.include_router(auth.router)
-#app.include_router(data_source.router)
+app.include_router(data_source.router)

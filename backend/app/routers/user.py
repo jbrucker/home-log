@@ -55,7 +55,9 @@ async def create_user(user_data: schemas.UserCreate,
     """
     existing_user = await user_dao.get_user_by_email(session, user_data.email)
     if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email {user_data.email} already registered")
+        # 409 CONFLICT is standard response for conflicting data
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, 
+                            detail="Email {user_data.email} already registered")
     try:
         result = await user_dao.create(session, user_data)
     except ValueError as ex:

@@ -5,43 +5,22 @@ from fastapi.testclient import TestClient
 import pytest, pytest_asyncio
 from app import schemas
 from app.data_access import user_dao
-from app.core import security
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 from .fixtures import client, auth_user, session
-from .utils import create_users
-
-
-def auth_headers(token: str) -> dict:
-    """Return authorization headers containing the given token."""
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest_asyncio.fixture()
-async def alexa(session):
-    """Test fixture for a persisted user name Alexa."""
-    new_user = schemas.UserCreate(email="alexa@amazon.com", username="Alexa")
-    user = await user_dao.create(session, new_user) 
-    assert user.id > 0, "Persisted user should have id > 0"
-    return user
-
-
-@pytest_asyncio.fixture()
-async def sally(session):
-    """Test fixture for a persisted user name Sally."""
-    new_user = schemas.UserCreate(email="sally@yahoo.com", username="Sally")
-    user = await user_dao.create(session, new_user)
-    assert user.id > 0, "Persisted user should have id > 0"
-    return user
+# These are User entities for tests
+from .fixtures import alexa, sally
+from .utils import auth_headers, create_users
 
 
 @pytest.mark.asyncio
 async def test_create_user(session, auth_user, client: TestClient):
     """An authorized user can create a new user entity."""
     # add authentication
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
+    
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
+    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
     result = client.post("/users",
                          headers=auth_headers(token),
                          json={"username": USER_NAME, "email": USER_EMAIL}
@@ -59,8 +38,8 @@ async def test_create_user(session, auth_user, client: TestClient):
                          headers=auth_headers(token),
                          json={"username": "Jone", "email": USER_EMAIL}
                         )
-    # TODO what should be status code? Check Microsoft Guidance
-    assert result.status_code == status.HTTP_400_BAD_REQUEST
+    # 409 CONFLICT is standard response for conflicting data
+    assert result.status_code == status.HTTP_409_CONFLICT
 
 
 @pytest.mark.asyncio
@@ -68,13 +47,11 @@ async def test_get_user(session, alexa, auth_user, client: TestClient):
     """Router returns a user with matching id, e.g. GET /users/1."""
     # add authentication?
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    # requested user
+    # the user to get
     user_id = alexa.id
-    # Use /users/delete
     result = client.get(f"/users/{user_id}", headers=auth_headers(token))   # auth not really required
-    # Should return HTTP 200 OK with data
     assert result.status_code == status.HTTP_200_OK
-    # get user data from response body
+    # verify user data from response body
     user_data = result.json()
     assert user_data["id"] == alexa.id
     assert user_data["email"] == alexa.email
@@ -151,5 +128,4 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     # user is still GET-able
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
     result = client.get(f"/users/{user_id}", headers=auth_headers(token))
-    # Should return OK
     assert result.status_code == status.HTTP_200_OK
