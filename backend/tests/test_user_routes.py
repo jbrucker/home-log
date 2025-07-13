@@ -1,5 +1,5 @@
 """Test the FastAPI routes for /user"""
-from fastapi import status
+from fastapi import Response, status
 
 from fastapi.testclient import TestClient
 import pytest, pytest_asyncio
@@ -10,7 +10,7 @@ from app.utils import jwt
 from .fixtures import client, auth_user, session
 # These are User entities for tests
 from .fixtures import alexa, sally
-from .utils import auth_headers, create_users
+from .utils import auth_header, create_users
 
 
 @pytest.mark.asyncio
@@ -21,8 +21,8 @@ async def test_create_user(session, auth_user, client: TestClient):
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result = client.post("/users",
-                         headers=auth_headers(token),
+    result: Response = client.post("/users",
+                         headers=auth_header(token),
                          json={"username": USER_NAME, "email": USER_EMAIL}
                         )
     new_user = schemas.User(**result.json())
@@ -35,7 +35,7 @@ async def test_create_user(session, auth_user, client: TestClient):
     assert user.username == USER_NAME
     # cannot add another user with same email
     result = client.post("/users",
-                         headers=auth_headers(token),
+                         headers=auth_header(token),
                          json={"username": "Jone", "email": USER_EMAIL}
                         )
     # 409 CONFLICT is standard response for conflicting data
@@ -46,10 +46,10 @@ async def test_create_user(session, auth_user, client: TestClient):
 async def test_get_user(session, alexa, auth_user, client: TestClient):
     """Router returns a user with matching id, e.g. GET /users/1."""
     # add authentication?
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
     # the user to get
     user_id = alexa.id
-    result = client.get(f"/users/{user_id}", headers=auth_headers(token))   # auth not really required
+    result = client.get(f"/users/{user_id}", 
+                        headers=auth_header(auth_user))   # auth not really required
     assert result.status_code == status.HTTP_200_OK
     # verify user data from response body
     user_data = result.json()
@@ -62,8 +62,7 @@ async def test_get_user(session, alexa, auth_user, client: TestClient):
 async def test_get_users_returns_all(session, auth_user, client: TestClient):
     """Router returns all users when no limit is specified."""
     await create_users(session, 20)
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result = client.get("/users/", headers=auth_headers(token))
+    result = client.get("/users/", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
     user_data = result.json()
     assert isinstance(user_data, list)
@@ -74,12 +73,40 @@ async def test_get_users_returns_all(session, auth_user, client: TestClient):
 async def test_get_users_with_limit(session, auth_user, client: TestClient):
     """Router returns specified number of users when limit is provided."""
     await create_users(session, 20)
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result = client.get("/users/?limit=5", headers=auth_headers(token))
+    result = client.get("/users/?limit=5", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
-    user_data = result.json()
-    assert isinstance(user_data, list)
-    assert len(user_data) == 5
+    users_data = result.json()
+    assert isinstance(users_data, list)
+    assert len(users_data) == 5
+
+
+@pytest.mark.asyncio
+async def test_get_users_with_limit_and_offset(session, auth_user, client: TestClient):
+    """Router returns requested users when limit and offset are given."""
+    await create_users(session, 50)
+    my_auth_header = auth_header(auth_user)
+    # get users in groups of 10. Save the ids so we can verify no repeats.
+    seen_ids = []
+    for offset in range(0,50,10):
+        result = client.get(f"/users/?limit=10&offset={offset}", headers=my_auth_header)
+        assert result.status_code == status.HTTP_200_OK
+        users_data = result.json()
+        assert isinstance(users_data, list)
+        assert len(users_data) == 10
+        returned_ids = {user["id"] for user in users_data}
+        # all the returned values are distinct
+        assert len(set(returned_ids)) == len(returned_ids), f"Duplicate returned User ids: {returned_ids}"
+        # none of them were returned previously
+        assert not any(id in seen_ids for id in returned_ids)
+        seen_ids.extend(returned_ids)
+    
+    # If offset too large, then GET with offset returns an empty result
+    offset = 1000
+    result = client.get(f"/users/?limit=10&offset={offset}", headers=my_auth_header)
+    assert result.status_code == status.HTTP_200_OK
+    users_data = result.json()
+    assert isinstance(users_data, list)
+    assert len(users_data) == 0, f"Expected empty list but got {len(users_data)} results"
 
 
 @pytest.mark.skip(reason="For debugging allow unauthenticated get all users")
@@ -94,19 +121,17 @@ async def test_get_users_unauthenticated(session, client: TestClient):
 @pytest.mark.asyncio
 async def test_delete_user(session, alexa, auth_user, client: TestClient):
     """An authorized user can delete a user. For now, any authenticated user is authorized."""
-    # add authentication
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    # injected user
+    # the user to delete
     user_id = alexa.id
-    # Use /users/{id}
     result = client.delete(f"/users/{user_id}",
-                        headers=auth_headers(token)
+                        # add authentication
+                        headers=auth_header(auth_user)
                         )
     # Should return HTTP 204
     assert result.status_code == status.HTTP_204_NO_CONTENT
     # user should no longer be fetchable
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result = client.get(f"/users/{user_id}", headers=auth_headers(token))
+    result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
     # Should return NOT FOUND
     assert result.status_code == status.HTTP_404_NOT_FOUND, \
           f"GET deleted user {user_id} returned status code {result.status_code}"
@@ -125,7 +150,6 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     user = await user_dao.get_user(session, user_id)
     assert user is not None, f"Unauthorized delete request deleted user {str(sally)}"
     assert user.id == user_id, f"Unauthorized delete request changed user id of {str(sally)}"
-    # user is still GET-able
-    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result = client.get(f"/users/{user_id}", headers=auth_headers(token))
+    # user should still be GET-able
+    result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK

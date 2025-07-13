@@ -10,7 +10,7 @@ from app.core import security
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 from .fixtures import alexa, sally, client, auth_user, session
-from .utils import auth_headers, create_users
+from .utils import auth_header
 
 
 def test_create_data_source_as_authenticated(session, alexa, client):
@@ -22,25 +22,17 @@ def test_create_data_source_as_authenticated(session, alexa, client):
     and that the returned data contains the expected fields and values, including 'id' and 'created_at'.
 
     Args:
-        client: Test client with authentication headers set for the authenticated user.
-        alexa: Fixture providing a user entity with 'id' and 'email'.
+        client: FastAPI Test client.
+        alexa: Fixture providing a user entity.
         session: Database session fixture.
-
-    Asserts:
-        - Response status code is 201 (Created).
-        - Response JSON contains the correct 'name', 'type', and 'config'.
-        - Response JSON includes 'id' and 'created_at' fields.
     """
-    # Assume auth_user is a fixture that returns a user dict with 'id' and 'email'
-    # and client is a TestClient with authentication headers set for auth_user
     data = {
         "name": "Test Source",
         "unit": "btu",
     }
-    token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
     create_time = datetime.now(timezone.utc)
     result = client.post("/sources/", 
-                           headers=auth_headers(token),
+                           headers=auth_header(alexa),
                            json=data)
     assert result.status_code == status.HTTP_201_CREATED
     new_source = schemas.DataSource(**result.json())
@@ -64,20 +56,166 @@ def test_unauthenticated_create_data_source_not_allowed(session, client):
  
 
 def test_create_data_source_always_owned_by_auth_user(session, alexa, sally, client):
-    """The owner of a new data source is always the user authenticated in request header."""
+    """The owner of a new data source is always the user in the authentication request header."""
     data = {
         "name": "Another Test Source",
         "unit": "btu",
-        "owner_id": sally.id   # this should be ignored
+        "owner_id": sally.id   # sally is not the authorized user, so this id should be ignored
     }
     # authenticate as alexa
-    token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
     create_time = datetime.now(timezone.utc)
     result = client.post("/sources/", 
-                         headers=auth_headers(token),
+                         headers=auth_header(alexa),
                          json=data)
     assert result.status_code == status.HTTP_201_CREATED
     new_source = schemas.DataSource(**result.json())
     assert new_source.owner_id == alexa.id
- 
-    
+
+
+@pytest.mark.asyncio
+async def test_update_data_source_success(session, alexa, client):
+    """Authenticated user can update their own data source."""
+    # Create a data source owned by Alexa
+    token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
+    data = {"name": "Original Name", "unit": "kWh", "description": "Original description"}
+    auth_header_alexa = auth_header(alexa)
+    response = client.post(
+        "/sources/",
+        headers=auth_header_alexa,
+        json=data
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    source_id = response.json()["id"]
+    assert source_id > 0
+
+    # Update the data source
+    update_data = {
+        "name": "Updated Name",
+        "unit": "MWh",
+        "description": "Updated desc"
+    }
+    update_resp = client.put(
+        f"/sources/{source_id}",
+        headers=auth_header_alexa,
+        json=update_data
+    )
+    assert update_resp.status_code == status.HTTP_201_CREATED
+    updated = update_resp.json()
+    assert updated["id"] == source_id
+    assert updated["name"] == update_data["name"]
+    assert updated["unit"] == update_data["unit"]
+    assert updated["description"] == update_data["description"]
+    assert updated["owner_id"] == alexa.id
+
+
+@pytest.mark.asyncio
+async def test_partial_update_preserves_old_data(session, alexa, client):
+    """Fields not specified in an update request are not changed."""
+    # Create a data source owned by Alexa
+    orig_data = {"name": "Original Name", "unit": "kWh", "description": "Original description"}
+    response = client.post("/sources/", headers=auth_header(alexa), json=orig_data)
+    assert response.status_code == status.HTTP_201_CREATED
+    source_id = response.json()["id"]
+
+    # Update only some fields
+    update_data = {
+                    "name": "Updated Name",
+                    "unit": "MWh"
+                  }
+    response = client.put(
+                    f"/sources/{source_id}",
+                    headers=auth_header(alexa),
+                    json=update_data
+                    )
+    assert response.status_code == status.HTTP_201_CREATED
+    updated = response.json()
+    assert updated["name"] == update_data["name"]
+    assert updated["unit"] == update_data["unit"]
+    # still has original description
+    assert updated["description"] == orig_data["description"]
+
+
+@pytest.mark.asyncio
+async def test_unuathorized_update_data_source(session, alexa, sally, client):
+    """User cannot update a data source they do not own."""
+    # Alexa creates a data source
+    create_resp = client.post(
+                    "/sources/",
+                    headers=auth_header(alexa),
+                    json={"name": "Alexa's Source", "unit": "kWh"}
+                    )
+    source_id = create_resp.json()["id"]
+
+    # Sally tries to update Alexa's data source
+    update_data = {"name": "Sally's Update", "unit": "MWh"}
+    update_resp = client.put(
+                    f"/sources/{source_id}",
+                    headers=auth_header(sally),
+                    json=update_data
+                    )
+    assert update_resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.asyncio
+async def test_update_data_source_not_found(session, alexa, client):
+    """Returns 404 if attempt to update a data source that does not exist."""
+    update_data = {"name": "Doesn't Matter", "unit": "kWh"}
+    response = client.put(
+                    "/sources/99999",
+                    headers=auth_header(alexa),
+                    json=update_data
+                    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+@pytest.mark.asyncio
+async def test_delete_data_source_success(session, alexa, client):
+    """Authenticated user can delete their own data source."""
+    # Alexa creates a data source
+    auth_header_alexa = auth_header(alexa)
+    create_response = client.post(
+        "/sources/",
+        headers=auth_header_alexa,
+        json={"name": "Source to Delete", "unit": "kWh"}
+    )
+    assert create_response.status_code == status.HTTP_201_CREATED
+    source_id = create_response.json()["id"]
+
+    # Alexa deletes the data source
+    delete_response = client.delete(f"/sources/{source_id}", headers=auth_header_alexa)
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    # Confirm it's gone
+    response = client.get(f"/sources/{source_id}", headers=auth_header_alexa)
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_delete_data_source_unauthorized(session, alexa, sally, client):
+    """User cannot delete a data source they do not own."""
+    # Alexa creates a data source
+    create_resp = client.post(
+        "/sources/",
+        headers=auth_header(alexa),
+        json={"name": "Alexa's Source", "unit": "kWh"}
+    )
+    source_id = create_resp.json()["id"]
+
+    # Sally tries to delete Alexa's data source
+    delete_resp = client.delete(f"/sources/{source_id}", headers=auth_header(sally))
+    assert delete_resp.status_code == status.HTTP_403_FORBIDDEN
+    # Confirm source is still there
+    response = client.get(f"/sources/{source_id}", headers=auth_header(alexa))
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.asyncio
+async def test_delete_data_source_not_found(session, alexa, client):
+    """Returns 404 if attempt to delete a data source that does not exist."""
+    delete_resp = client.delete("/sources/99999", headers=auth_header(alexa))
+    assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_delete_data_source_unauthenticated(client):
+    """Cannot delete a data source without authentication."""
+    delete_resp = client.delete("/sources/1")
+    assert delete_resp.status_code == status.HTTP_401_UNAUTHORIZED

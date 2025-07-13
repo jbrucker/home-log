@@ -89,7 +89,8 @@ async def update_source(source_id: int,
         if not user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
                                 detail=f"Owner id {data.owner_id} does not exist")
-    return await data_source_dao.update_data_source(session, source_id=source_id, data=data)
+    return await data_source_dao.update_data_source(session, data_source_id=source_id, 
+                                                    source_data=data)
 
 
 @router.delete("/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -99,13 +100,13 @@ async def delete_source(source_id: int,
     """Delete a data source by id.  Returns the data for the deleted item."""
     logging.getLogger(__name__).info(f"delete_source source_id {source_id} by {str(current_user)}")
     assert source_id > 0
-    data_source = data_source_dao.get_data_source(session,source_id)
+    data_source = await data_source_dao.get_data_source(session,source_id)
     if not data_source:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if data_source.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail=f"You do not have authorization to delete data source {source_id}")
-    result = await data_source_dao.delete_user(session, source_id)
+    result = await data_source_dao.delete_data_source(session, source_id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No data source with id {source_id}")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

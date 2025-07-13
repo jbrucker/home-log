@@ -12,10 +12,8 @@ from app import schemas
 from app.data_access import user_dao
 from app.utils import oauth2
 
-
-router = APIRouter(tags=["users"])  # can use prefix="/users" to factor out path prefix.
-
-#oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+# can add prefix="/users" option to factor out path prefix. I prefer explicit path for readability.
+router = APIRouter(tags=["users"]) 
 
 
 @router.get("/users")
@@ -33,7 +31,7 @@ async def get_users(limit: int = Query(20, ge=1, le=100),
     return users
 
 
-@router.get("/users/{user_id}")
+@router.get("/users/{user_id}", response_model=schemas.User)
 async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)) -> schemas.User:
     """Get a user with matching `user_id`."""
     user = await user_dao.get_user(session, user_id)
@@ -72,10 +70,11 @@ async def create_user(user_data: schemas.UserCreate,
 
 
 @router.put("/users/{user_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
-async def update_user(user_id: int, user_data: schemas.UserCreate, 
+async def update_user(user_id: int, 
+                      user_data: schemas.UserCreate, 
                       session: AsyncSession = Depends(db.get_session),
                       current_user = Depends(oauth2.get_current_user)
-                     ):
+                     ) -> schemas.User:
     """Update the data for an existing user, using the `user_id` to identify the user to modify."""
     result = await user_dao.get_user(session, user_id)
     if not result:

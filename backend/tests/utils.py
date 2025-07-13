@@ -1,14 +1,22 @@
 """Some utility functions for use in tests."""
 from datetime import datetime, timezone
 from app import models
+from app.utils import jwt
 
 # Email domain for users created by create_users()
-EMAIL_DOMAIN = "test.domain.me"
+EMAIL_DOMAIN = "test.doma.in"
 
 
-def auth_headers(token: str) -> dict:
-    """Return authorization headers containing the given token."""
+def auth_header(arg: models.User | str) -> dict:
+    """create an auth token for a user (if arg is User model) or use the given arg string
+       as a token, and return an authorization header containing the token.
+    """
+    if isinstance(arg, models.User):
+        token = jwt.create_access_token(data={"user_id": arg.id}, expires=30)
+    else:
+        token = arg  # assume string is a token
     return {"Authorization": f"Bearer {token}"}
+
 
 
 def is_timezone_aware(dt: datetime) -> bool:
@@ -36,15 +44,15 @@ async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
     print(f"Added {n} users")
 
 
-    async def create_data_source(session, owner: models.User = None, **data) -> models.DataSource:
-        """
-        Create a DataSource instance using the provided by key-value parameters (**data).
-        Assumes the 'models.DataSource' fields match keys in 'data'.
-        """
-        if owner:
-            data["owner_id"] = owner.id
-        data_source = models.DataSource(**data)
-        session.add(data_source)
-        await session.commit()
-        return data_source
+async def create_data_source(session, owner: models.User = None, **data) -> models.DataSource:
+    """
+    Create a DataSource instance using the provided by key-value parameters (**data).
+    Assumes the 'models.DataSource' fields match keys in 'data'.
+    """
+    if owner:
+        data["owner_id"] = owner.id
+    data_source = models.DataSource(**data)
+    session.add(data_source)
+    await session.commit()
+    return data_source
     
