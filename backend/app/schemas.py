@@ -2,10 +2,50 @@
 These schemas are used in API endpoints.
 """
 
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Annotated, Optional
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, validator
 from datetime import datetime, timezone
 from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME, MAX_UNIT_NAME
+
+from annotated_types import MinLen, MaxLen
+
+from pydantic import (
+    GetCoreSchemaHandler,
+    GetJsonSchemaHandler,
+    SecretStr,
+    ValidationError,
+    AfterValidator
+)
+from typing import Annotated, Any
+from annotated_types import MinLen, MaxLen
+import re
+
+def _validate_password(password: SecretStr) -> SecretStr:
+    """Internal validation rules for passwords."""
+    value = password.get_secret_value()
+    errors = []
+    if not re.search(r"[A-Z]", value):
+        errors.append("Missing uppercase letter A-Z")
+    if not re.search(r"[a-z]", value):
+        errors.append("Missing lowercase letter a-z")
+    if not re.search(r"\d", value):
+        errors.append("Missing digit 0-9")
+    if re.match(r"^\s.*", value) or re.match(r".*\s$", value):
+        errors.append("May not begin/end with whitespace")
+    #if not re.search(r"[!@#$%^&*()_+{}\[\]:;<>,.?~\\-]", value):
+    #    rerrors.append("Missing special character (!@#$...)")
+    if re.search(r"(.)\1\1", value):
+        errors.append("3+ repeated characters in a row")
+    if errors:
+        raise ValueError(", ".join(errors))
+    return password
+
+# Define a custom validator for Password strings 
+PasswordStr = Annotated[
+    SecretStr,                           # PasswordStr _is_ a SecretStr
+    Field(min_length=7, max_length=255), # Basic constraints
+    AfterValidator(_validate_password)   # Runs after basic validation
+]
 
 
 class UserCreate(BaseModel):
@@ -27,6 +67,10 @@ class User(UserCreate):
     # model_config replaces the Config inner-class in Pydantic 2.0
     model_config = ConfigDict(from_attributes=True)
 
+
+class PasswordCreate(BaseModel):
+    """Set or change a password."""
+    password: PasswordStr
 
 class DataSourceCreate(BaseModel):
     """Schema for creating a new DataSource."""

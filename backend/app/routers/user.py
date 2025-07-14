@@ -6,6 +6,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi import status  # for HTTP status codes. Can alternatively use http.HTTPStatus.
+import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import schemas
@@ -69,17 +70,33 @@ async def create_user(user_data: schemas.UserCreate,
     return result
 
 
-@router.put("/users/{user_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
+@router.put("/users/{user_id}", status_code=status.HTTP_200_OK, response_model=schemas.User)
 async def update_user(user_id: int, 
                       user_data: schemas.UserCreate, 
                       session: AsyncSession = Depends(db.get_session),
                       current_user = Depends(oauth2.get_current_user)
                      ) -> schemas.User:
-    """Update the data for an existing user, using the `user_id` to identify the user to modify."""
+    """Update the data for an existing user, using the `user_id` to identify the user to modify.
+    
+    :returns: 200 after successful update, 400 BAD REQUEST if update data is invalid,
+              403 FORBIDDEN if the update is not allowed, e.g. updating a different user,
+              409 CONFLICT if update violates database integrity (email already used by another user)
+    """
     result = await user_dao.get_user(session, user_id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No user with id {user_id}")
-    return await user_dao.update_user(session, user_id=user_id, user_data=user_data)
+    # User can update only his own data
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    
+    # return the updated user model (without password)
+    try:
+        updated = await user_dao.update_user(session, user_id=user_id, user_data=user_data)
+        return updated
+    except sqlalchemy.exc.IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Data integrity error")
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

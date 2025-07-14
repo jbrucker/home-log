@@ -119,6 +119,64 @@ async def test_get_users_unauthenticated(session, client: TestClient):
 
 
 @pytest.mark.asyncio
+async def test_update_user(session, alexa, sally, client: TestClient):
+    """An authorized user can update his own data."""
+    # the user to update
+    user_id = alexa.id
+    # Update the user's attributes
+    update_data = {
+                    "username": "Jeff Bezos",
+                    "email": "bezos@amazon.com"
+                }
+    response = client.put(f"/users/{user_id}",
+                        # add authentication
+                        headers=auth_header(alexa),
+                        json=update_data
+                        )
+    assert response.status_code == status.HTTP_200_OK
+    updated = response.json()
+    assert updated["id"] == user_id
+    assert updated["username"] == update_data["username"]
+    assert updated["email"] == update_data["email"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_enforces_data_integrity(session, alexa, sally, client: TestClient):
+    """Updates to a user cannot violate database constraints."""
+    # the user to update
+    user_id = alexa.id
+    # Update the user's attributes. Email violates uniqueness constraint.
+    update_data = {
+                    "username": "Jeff Bezos",
+                    "email": sally.email
+                }
+    response = client.put(f"/users/{user_id}",
+                        # add authentication
+                        headers=auth_header(alexa),
+                        json=update_data
+                        )
+    assert response.status_code == status.HTTP_409_CONFLICT
+    # TODO If a required field is missing, should raise HTTP 400
+
+
+@pytest.mark.asyncio
+async def test_cannot_update_another_user(session, alexa, sally, client: TestClient):
+    """A user may update only his/her own data, not someone else's."""
+    # the user to update
+    user_id = alexa.id
+    update_data = {
+                    "username": "Jeff Bezos",
+                    "email": "bezos@amazon.com"
+                }
+    response = client.put(f"/users/{user_id}",
+                        # add authentication
+                        headers=auth_header(sally),  # authenticate as someone else
+                        json=update_data
+                        )
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.asyncio
 async def test_delete_user(session, alexa, auth_user, client: TestClient):
     """An authorized user can delete a user. For now, any authenticated user is authorized."""
     # the user to delete

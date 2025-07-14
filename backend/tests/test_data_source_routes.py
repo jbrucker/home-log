@@ -99,7 +99,7 @@ async def test_update_data_source_success(session, alexa, client):
         headers=auth_header_alexa,
         json=update_data
     )
-    assert update_resp.status_code == status.HTTP_201_CREATED
+    assert update_resp.status_code == status.HTTP_200_OK
     updated = update_resp.json()
     assert updated["id"] == source_id
     assert updated["name"] == update_data["name"]
@@ -127,7 +127,7 @@ async def test_partial_update_preserves_old_data(session, alexa, client):
                     headers=auth_header(alexa),
                     json=update_data
                     )
-    assert response.status_code == status.HTTP_201_CREATED
+    assert response.status_code == status.HTTP_200_OK
     updated = response.json()
     assert updated["name"] == update_data["name"]
     assert updated["unit"] == update_data["unit"]

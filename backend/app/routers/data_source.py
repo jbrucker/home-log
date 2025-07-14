@@ -68,7 +68,7 @@ async def create_source(data: schemas.DataSourceCreate,
     return result
 
 
-@router.put("/sources/{source_id}", status_code=status.HTTP_201_CREATED, response_model=schemas.DataSource)
+@router.put("/sources/{source_id}", status_code=status.HTTP_200_OK, response_model=schemas.DataSource)
 async def update_source(source_id: int, 
                         data: schemas.DataSourceCreate, 
                         session: AsyncSession = Depends(db.get_session),
@@ -89,8 +89,10 @@ async def update_source(source_id: int,
         if not user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
                                 detail=f"Owner id {data.owner_id} does not exist")
-    return await data_source_dao.update_data_source(session, data_source_id=source_id, 
-                                                    source_data=data)
+    # return the updated DataSource model
+    return await data_source_dao.update_data_source(session, 
+                                data_source_id=source_id, 
+                                source_data=data)
 
 
 @router.delete("/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)

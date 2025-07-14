@@ -95,6 +95,8 @@ async def update_user(session: AsyncSession, user_id: int, user_data: schemas.Us
        :param user_id: id (primary key) of User to update
        :param user_data: new data for the user. All fields are in user_data are used.
        :raises ValueError: if no persisted User with the given `user_id`
+       :raises IntegrityError: if uniqueness constraint(s) violated
+       :raises ValueError: if any required values are invalid
     """
     user = await get_user(session, user_id)
     if not user:
@@ -148,8 +150,9 @@ async def get_password(session: AsyncSession,
         None
 
 async def set_password(session: AsyncSession, 
-                            user: models.User | int, 
-                            password: str) -> models.UserPassword | None:
+                        user: models.User | int, 
+                        password: str
+                        ) -> models.UserPassword | None:
     """Set or update a user's password.
 
     :param user: a models.User or user id (int) of a User 
