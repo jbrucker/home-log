@@ -1,5 +1,6 @@
 """Some utility functions for use in tests."""
 from datetime import datetime, timezone
+from sqlalchemy.ext.asyncio import AsyncSession
 from app import models
 from app.utils import jwt
 
@@ -55,4 +56,4 @@ async def create_data_source(session, owner: models.User = None, **data) -> mode
     session.add(data_source)
     await session.commit()
     return data_source
-    
+

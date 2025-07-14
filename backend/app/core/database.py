@@ -101,12 +101,44 @@ class Database:
         async with self.engine.begin() as connection:
             await connection.run_sync(Base.metadata.drop_all)
 
+    async def delete_all_data(self, Base):
+        """Delete all records from all tables in dependency order.
+           For running tests this may be faster and use less I/O than
+           creating tables before each test and dropping them later.
+
+           :param Base: the declarative Base class used to create the models.
+        """
+        # Get all model classes
+        models = [cls for cls in Base.__subclasses__()
+                  if hasattr(cls, '__tablename__')]
+        
+        # Sort models by dependency (simple approach - may need adjustment)
+        # This is to avoid ForeignKey constraint violations during delete.
+        models.sort(key=lambda x: len(x.__table__.foreign_keys), reverse=True)
+        async for session in self.get_session():
+            for model in models:
+                await session.query(model).delete()
+            await session.commit()
+
+    async def delete_all_data2(self, Base):
+        """Use metadate to delete all table data, in reverse order that
+           the tables were created.
+
+           :param Base: the declarative Base class used to create the models.
+        """
+        async for session in self.get_session():
+            for table in reversed(Base.metadata.sorted_tables):
+                await session.execute(table.delete())
+            await session.commit()     
+
 # Shared database instance 
 db = Database()
 
 
 async def session_tests():
+    """Some tests of the use of db.get_session()."""
     whatis = lambda session: print("          session is", type(session).__name__)
+
     # Can we use `async for` to get a session?
     # Answer: YES.  It yields only 1 session not an infinite loop.
     print("\nMethod 1: async for session in db.get_session()")

@@ -2,9 +2,10 @@
 
    To verify fixtures are found use:  pytest --fixtures
 
+   A test database is configured in conftest.py, pytest_sessionstart().
 """
 
-#from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 import logging
 import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
@@ -18,32 +19,27 @@ from app.data_access import user_dao
 AUTH_USER_EMAIL = "admin@localhost.com"
 AUTH_USER_PASSWORD = "MakeMyDay"
 
-"""Use a temporary database for tests"""
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-# db = Database()
-db.create_engine(TEST_DATABASE_URL)
-print("Database engine url", str(db.engine.url))
-assert str(db.engine.url) == TEST_DATABASE_URL
-
 
 # A session-level "fixture" for logging. scope="session" means it is used only once.
-@pytest.fixture(scope="session", autouse=True)
-def setup():
-    from .conftest import configure_logging
+@pytest.fixture(scope="session")
+def globalsetup():
+    from .conftest import configure_logging, event_log
+    event_log("Run fixtures.global_setup()")
     configure_logging()
-    logging.getLogger("fixtures").info("Logging initialized by setup() fixture")
-    # Touch a file as evidence that setup was actually invoked
-    # with open("/tmp/pytest_config.txt", mode="a") as file:
-    #     file.write("Running pytest session fixture 'setup'")
+    logging.getLogger("fixtures").info(f"Logging initialized by {__name__} fixture")
+    yield
+    # run after all tests
+    event_log("Finish fixtures.global_setup() after yield")
 
 
 @pytest_asyncio.fixture()
 async def session():
     """Test fixture that yields an AsyncSession for use in a test."""
-    # Create tables before each test
+    # Create tables before each test?
     await db.destroy_tables()
-    await db.create_tables()  
+    await db.create_tables()
+    # Or delete data from tables? Should be faster and less I/O.
+    #await db.delete_all_data2(models.Base)
     try:
         async for session in db.get_session():
             yield session
