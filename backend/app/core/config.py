@@ -1,7 +1,6 @@
+import os
 from decouple import config
 
-# Note the async SQLite URL uses aiosqlite
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 
 # Maximum length for some string fields
 MAX_NAME = 60       # A descriptive name can be a bit long
@@ -31,16 +30,21 @@ class Settings:
 
         # Hashing algorithm for JWT tokens. Prefer "HS256" = HMAC + SHA256 Symmetric key algorithm
         self.jwt_algorithm = config("JWT_ALGORITHM", default="HS256")
-        # For "HS256" - generate secret key using one of these:
-        # os.urandom(32) 
-        # secrets.token_hex(32)
+        # For "HS256" - generate secret key (str) using one of these:
+        # os.urandom(32).hex()
+        # secrets.token_hex(32)  -- a wrapper for os.urandom(n).hex()
         # Shell: `openssl rand --hex 32`
-        self.secret_key = config("SECRET_KEY")
+        self.secret_key = config("SECRET_KEY", default=os.urandom(32).hex())
         # Use short expiry on tokens
-        self.access_token_expire_minutes = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=180, cast=int)
+        self.access_token_expire_minutes = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=60, cast=int)
 
 # For production
 #settings = Settings()
 
-# Run tests using a test database (Sqlite)
-settings = Settings(TEST_DATABASE_URL)
+# A lightweight database for development use
+# Note the async SQLite URL uses aiosqlite
+DEV_DATABASE_URL = "sqlite+aiosqlite:///./dev.sqlite3"
+
+# Run using a light-weight development database.
+# For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)
+settings = Settings(DEV_DATABASE_URL)
