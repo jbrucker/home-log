@@ -1,7 +1,7 @@
 # Run basic error checking with flake8, then run pytest.
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
-name: Run Pytest
+name: Run Pytest on backend
 
 on:
   push:
@@ -25,6 +25,7 @@ jobs:
         python-version: "3.11"
     - name: Install dependencies
       run: |
+        cd backend
         python -m pip install --upgrade pip
         pip install pytest flake8
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
