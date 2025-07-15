@@ -23,6 +23,7 @@ python-multipart
 uuid7
 
 # Requirements for testing
+aiosqlite
 httpx
 pytest
 pytest-asyncio
