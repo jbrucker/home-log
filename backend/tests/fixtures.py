@@ -5,7 +5,6 @@
    A test database is configured in conftest.py, pytest_sessionstart().
 """
 
-import asyncio
 import logging
 import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
@@ -15,27 +14,33 @@ from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
 from app import main, models, schemas
 from app.data_access import user_dao
+from .conftest import TEST_DATABASE_URL
 
 AUTH_USER_EMAIL = "admin@localhost.com"
 AUTH_USER_PASSWORD = "MakeMyDay"
 
 
 # A session-level "fixture" for logging. scope="session" means it is used only once.
+# BUG: pytest_asyncio.fixture does not honor the `scope=` parameter.
+# @pytest_asyncio.fixture(scope="session")
+# PROBLEM: You can't use a synchronous fixture as a fixture parameter in an async fixture.
+# WORK-AROUND: Put all session-level test configuration in conftext.py
 @pytest.fixture(scope="session")
 def globalsetup():
     from .conftest import configure_logging, event_log
-    event_log("Run fixtures.global_setup()")
+    event_log("Run fixtures.globalsetup()")
     configure_logging()
     logging.getLogger("fixtures").info(f"Logging initialized by {__name__} fixture")
     yield
     # run after all tests
-    event_log("Finish fixtures.global_setup() after yield")
+    event_log("Finish fixtures.globalsetup() after yield")
 
 
 @pytest_asyncio.fixture()
 async def session():
     """Test fixture that yields an AsyncSession for use in a test."""
     # Create tables before each test?
+    assert str(db.engine.url) == TEST_DATABASE_URL, f"Are you using a test database? Got db URL {str(db.engine.url)}"
     await db.destroy_tables()
     await db.create_tables()
     # Or delete data from tables? Should be faster and less I/O.

@@ -6,7 +6,7 @@
    ...
    N. pytest_sessionfinish(session)
 
-   In my tests, a fixture annotated with @fixture(scope="session")
+   In my tests, the fixture annotated with @fixture(scope="session")
    was never executed.
    
    To verify that this file is found by pytest, use:  pytest --trace-config
@@ -50,7 +50,7 @@ def pytest_configure(config):
 
 def pytest_sessionstart(session):
     """Runs once before all tests."""
-    event_log(f"Run pytest_sessionstart(session={str(session)})")
+    event_log(f"Run pytest_sessionstart(session)")
     # Connect to testing database
     db.create_engine(TEST_DATABASE_URL)
     print("Database engine url", str(db.engine.url))
@@ -62,4 +62,4 @@ def pytest_sessionstart(session):
 
 def pytest_sessionfinish(session, exitstatus):
     """Runs once after all tests."""
-    event_log(f"Run pytest_sessionfinish(session={str(session)})")
+    event_log(f"Run pytest_sessionfinish(session)")
