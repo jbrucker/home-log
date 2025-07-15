@@ -65,31 +65,35 @@ Useful for development, but for a production environment it is better to manage 
    docker compose up -d db
    ```
    or start with dependencies:
-      ```bash
+   ```bash
    docker compose up -d db init-script
    ```
 2. Verify it's running:
    ```bash
    docker ps
-  ```
+   ```
 3. Interact with it:
+   - `pgsql` command line
+   - Database browser such as DBeaver
 
-4. Stop it, by partial id or container name.
+5. Stop it, using id prefix or container name.
    ```bash
    docker container ls
    docker stop [ a1b2c3d4 | homelog-db-1 ]
    ```
-5. View log files (specify container name)
+6. View log files (specify container name)
    ```bash
    docker logs homelog-db-1
    ```
-5. docker-compose projects, stop & remove container:
+7. docker-compose projects, stop & remove container:
    * Stop container and remove it: `docker compose down`
    * Also remove volumes: `docker compose down --volumes`
 
-## Suprabase
+## Supabase
 
-On [Suprabase](https://suprabase.com) I used the SQL Editor to query the database version.  Response was (15 Jun 2025):
+What version of Postgres is Supabase using?
+
+On [Supabase](https://supabase.com) I used the SQL Editor to query the database version.  Response was (15 Jun 2025):
 ```
 PostgreSQL 17.4 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit
 ```
