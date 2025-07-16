@@ -74,7 +74,7 @@ class User(Base):
                                     )
 
     def __str__(self) -> str:
-        """Return a string representation of a UserPassword instance."""
+        """Return a string representation of a User instance."""
         return f'id={self.id} "{self.username[:40]}" <{self.email}>'
 
 
