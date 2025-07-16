@@ -1,18 +1,16 @@
 """A globally accessible connection to the database.
 
-    db                 a shared instance of the Database class.
-    db.create_engine(url) change the URL of the database engine and connection.
+   db                 a shared instance of the Database class.
+   db.create_engine(url) change the URL of the database engine and connection.
                        This is intended for running tests.
-    db.get_session() - an async generator for AsyncSession objects
-    db.create_tables - create table schema using SqlAlchemy ORM model classes 
+   db.get_session() - an async generator for AsyncSession objects
+   db.create_tables - create table schema using SqlAlchemy ORM model classes 
                        defined using `Base` from this module.
-    db.delete_tables - delete table schema
-
-    Use of `db.create_tables` is optional -- you can create schema in many ways.
+   db.delete_tables - delete table schema   
+   Use of `db.create_tables` is optional -- you can create schema in many ways.
 """
 import asyncio
 import logging
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
@@ -22,6 +20,7 @@ from app.core.config import settings
 class Base(AsyncAttrs, DeclarativeBase):
     """
     SqlAlchemy 2.0 recommended style for the ORM base class used in database models.
+
     `AsyncAttrs` is necessary to support async operations like:
      - await user.refresh() or await user.load()
     `AsyncAttrs` does *NOT* make your model classes async, it makes
@@ -36,6 +35,7 @@ class Database:
     engine: AsyncEngine
 
     def __init__(self, database_url: str = None) -> None:
+        """Initialize an SqlAlchemy database engine and connect to a URL."""
         if database_url:
             settings.database_url = database_url
         elif not settings.database_url:
@@ -46,10 +46,9 @@ class Database:
     # with FastAPI's `Depends(...)` because FastAPI expects  
     # a callable returning `Awaitable` or `AsyncGenerator`,
     # not a context manager function.
-    ##@asynccontextmanager
+    # @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """Yields a generator for creating AsyncSession
-          and ensures it's closed after commit.
+        """Yield a generator for creating AsyncSession and close it when finished.
 
         :returns: AsyncGenerator[AsyncSession]
         """
@@ -58,7 +57,7 @@ class Database:
                 yield session
                 # code using the session calls session.commit() itself, if needed.
                 # await session.commit()
-            except Exception as ex:
+            except Exception:
                 await session.rollback()
                 raise
                 # Or wrap the exception (abstraction):
@@ -103,6 +102,7 @@ class Database:
 
     async def delete_all_data(self, Base):
         """Delete all records from all tables in dependency order.
+
            For running tests this may be faster and use less I/O than
            creating tables before each test and dropping them later.
 
@@ -121,8 +121,7 @@ class Database:
             await session.commit()
 
     async def delete_all_data2(self, Base):
-        """Use metadate to delete all table data, in reverse order that
-           the tables were created.
+        """Use metadate to delete all table data in reverse order that the tables were created.
 
            :param Base: the declarative Base class used to create the models.
         """
@@ -131,13 +130,14 @@ class Database:
                 await session.execute(table.delete())
             await session.commit()     
 
-# Shared database instance 
+
+# Shared database instance
 db = Database()
 
 
 async def session_tests():
-    """Some tests of the use of db.get_session()."""
-    whatis = lambda session: print("          session is", type(session).__name__)
+    """Test the use of db.get_session() in different contexts."""
+    def whatis(session): print("          session is", type(session).__name__)  # noqa: E704
 
     # Can we use `async for` to get a session?
     # Answer: YES.  It yields only 1 session not an infinite loop.

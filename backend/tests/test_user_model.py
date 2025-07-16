@@ -56,7 +56,7 @@ async def test_create_and_update_dates(session, user):
     assert as_utc_time(new_update) > as_utc_time(last_update), "after update, user.updated_at not modified"
 
 
-@pytest.mark.skipif(str(db.engine.url).startswith("sqlite"), 
+@pytest.mark.skipif(str(db.engine.url).startswith("sqlite"),
                     reason="SQLite does not return timezone aware datetime")
 @pytest.mark.asyncio
 async def test_dates_are_timezone_aware(session, user):
@@ -99,7 +99,7 @@ async def test_update_user_email(session, user):
     updated_user = await session.get(User, user.id)
     assert updated_user.email == new_email
     assert as_utc_time(updated_user.updated_at) > as_utc_time(last_update)
- 
+
 
 @pytest.mark.asyncio
 async def test_delete_user(session, user):

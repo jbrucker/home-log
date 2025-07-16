@@ -31,7 +31,7 @@ def test_create_data_source_as_authenticated(session, alexa, client):
         "unit": "btu",
     }
     create_time = datetime.now(timezone.utc)
-    result = client.post("/sources/", 
+    result = client.post("/sources/",
                            headers=auth_header(alexa),
                            json=data)
     assert result.status_code == status.HTTP_201_CREATED
@@ -50,10 +50,10 @@ def test_unauthenticated_create_data_source_not_allowed(session, client):
         "name": "Another Test Source",
         "unit": "btu",
     }
-    result = client.post("/sources/", 
+    result = client.post("/sources/",
                           json=data)
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
- 
+
 
 def test_create_data_source_always_owned_by_auth_user(session, alexa, sally, client):
     """The owner of a new data source is always the user in the authentication request header."""
@@ -64,7 +64,7 @@ def test_create_data_source_always_owned_by_auth_user(session, alexa, sally, cli
     }
     # authenticate as alexa
     create_time = datetime.now(timezone.utc)
-    result = client.post("/sources/", 
+    result = client.post("/sources/",
                          headers=auth_header(alexa),
                          json=data)
     assert result.status_code == status.HTTP_201_CREATED
@@ -219,3 +219,4 @@ def test_delete_data_source_unauthenticated(client):
     """Cannot delete a data source without authentication."""
     delete_resp = client.delete("/sources/1")
     assert delete_resp.status_code == status.HTTP_401_UNAUTHORIZED
+

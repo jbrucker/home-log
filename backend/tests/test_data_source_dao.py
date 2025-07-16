@@ -46,7 +46,7 @@ async def ds_data() -> schemas.DataSourceCreate:
 
 async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     """Create some data sources and persist them.
-    
+
        :returns: list of id's of the created data sources
     """
     created_ids = []
@@ -287,3 +287,4 @@ async def test_delete_nonexistent_data_source(session):
     """Deleting a datasource with non-existing id returns None."""
     deleted = await dao.delete_data_source(session, 999999)
     assert deleted is None
+

@@ -1,3 +1,5 @@
+"""Global settings and app configuration."""
+
 import os
 from decouple import config
 
@@ -23,9 +25,11 @@ url = URL.create(
 
 class Settings:
     """Globally available constants based on environment variables
-    or specified values (for testing).
+       or specified values (for testing).
     """
+
     def __init__(self, database_url:str = None):
+        """Create application settings using environment vars or hardcoded values."""
         self.database_url = database_url if database_url else config("DATABASE_URL")
 
         # Hashing algorithm for JWT tokens. Prefer "HS256" = HMAC + SHA256 Symmetric key algorithm
@@ -38,8 +42,9 @@ class Settings:
         # Use short expiry on tokens
         self.access_token_expire_minutes = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=60, cast=int)
 
+
 # For production
-#settings = Settings()
+# settings = Settings()
 
 # A lightweight database for development use
 # Note the async SQLite URL uses aiosqlite
