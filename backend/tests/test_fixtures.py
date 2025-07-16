@@ -9,3 +9,4 @@ from .fixtures import session
 async def test_inject_session(session):
     assert session is not None
     assert isinstance(session, AsyncSession)
+

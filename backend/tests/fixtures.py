@@ -88,7 +88,7 @@ def client():
 async def alexa(session):
     """Test fixture for a user entity named Alexa."""
     new_user = schemas.UserCreate(email="alexa@amazon.com", username="Alexa")
-    user = await user_dao.create(session, new_user) 
+    user = await user_dao.create(session, new_user)
     assert user.id > 0, "Persisted user should have id > 0"
     return user
 
@@ -100,3 +100,4 @@ async def sally(session):
     user = await user_dao.create(session, new_user)
     assert user.id > 0, "Persisted user should have id > 0"
     return user
+

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
-from sqlalchemy import select, and_
+from sqlalchemy import select
 
 from app import models, schemas
 from app.core import security
@@ -33,8 +33,8 @@ async def create(session: AsyncSession, user_data: schemas.UserCreate) -> models
 
 
 async def get_user(session: AsyncSession, user_id: int) -> models.User | None:
-    """Get a user from database using his id (primary key), and pre-fetched user_password relationship.
-    
+    """Get a user using his id (primary key), and pre-fetched user_password relationship.
+
     :returns: models.User instance or None if no match for `user_id`
     """
     if not isinstance(user_id, int) or user_id <= 0:
@@ -48,13 +48,13 @@ async def get_user_by_email(session: AsyncSession, email: str) -> models.User | 
     
     :returns: models.User instance or None if no match for `user_id`
     """
-    stmt = select(models.User).options(joinedload(models.User.user_password)).where(models.User.email == email)
+    options = joinedload(models.User.user_password)
+    stmt = select(models.User).options(options).where(models.User.email == email)
     result = await session.execute(stmt)
     # Return the first result or None if no match.
     # .scalar_one_or_none() raises sqlalchemy.exc.MultipleResultsFound if more than one match.
     # Use result.first() if email may not be unique, but first() returns a Row not a User.
     return result.scalar_one_or_none()
-
 
 
 async def get_users(session: AsyncSession, limit: int = 0, offset: int = 0) -> list[models.User]:
@@ -69,41 +69,40 @@ async def get_users(session: AsyncSession, limit: int = 0, offset: int = 0) -> l
     """
     return await base_dao.get_all(models.User, session, offset=offset, limit=limit)
 
-async def find_users(session: AsyncSession,  
-                     *conditions, 
+
+async def find_users(session: AsyncSession,
+                     *conditions,
                      **filters) -> list[models.User]:
     """
-    Get users matching arbitrary filter criteria.
-    Usage: await find_users(session, email="foo@bar.com", username="Foo")
-    
+    Get users matching arbitrary filter criteria
+
     :param conditions: SqlAlchemy filter expressions (e.g. models.User.id.
     :param filters: dict of User attribute to arbitrary values (e.g. email="foo@bar.com")
     `filters` may include `limit=n` and `offset=m` to limit and paginate results (see get_users)
-    
     :returns: list of matching entities, may be empty
 
     Example usage:
     await find_users(session, models.User.is_active == True, email="foo@bar.com")
     """
-    
     return await base_dao.find_by(models.User, session, *conditions, **filters)
 
 
-async def update_user(session: AsyncSession, user_id: int, user_data: schemas.UserCreate) -> models.User | None:
+async def update_user(session: AsyncSession, user_id: int, 
+                      user_data: schemas.UserCreate) -> models.User | None:
     """Update the data for an existing user, identified by `user_id`.
 
-       :param user_id: id (primary key) of User to update
-       :param user_data: new data for the user. All fields are in user_data are used.
-       :raises ValueError: if no persisted User with the given `user_id`
-       :raises IntegrityError: if uniqueness constraint(s) violated
-       :raises ValueError: if any required values are invalid
+    :param user_id: id (primary key) of User to update
+    :param user_data: new data for the user. All fields are in user_data are used.
+    :raises ValueError: if no persisted User with the given `user_id`
+    :raises IntegrityError: if uniqueness constraint(s) violated
+    :raises ValueError: if any required values are invalid
     """
     user = await get_user(session, user_id)
     if not user:
         raise ValueError(f"No user found with id {user_id}")
     # TODO Should we exclude unset fields?  It could make it impossible to "unset" an optional attribute.
-    #update_data = user_data.model_dump(exclude_unset=True)
-    #for field, value in update_data.items():
+    # update_data = user_data.model_dump(exclude_unset=True)
+    # for field, value in update_data.items():
     #    setattr(user, field, value)
     # Old:
     user.email = user_data.email
@@ -119,8 +118,8 @@ async def get_user_password(session: AsyncSession,
                             user: models.User | int
                             ) -> models.UserPassword | None:
     """Get a user's related UserPassword instance, which may be None.
-    If you only want the user's hashed password, use @get_password instead.
-    
+
+    If you only want the user's hashed password, use `get_password` instead. 
     :param user: a User model instance or the id (int) of user
     :returns: UserPassword of the requested user
     :raises ValueError: If no User with the given user_id value
@@ -131,11 +130,11 @@ async def get_user_password(session: AsyncSession,
     return user_password.scalar_one_or_none()
 
 
-async def get_password(session: AsyncSession, 
+async def get_password(session: AsyncSession,
                        user: models.User | int
                        ) -> str | None:
     """Get a user's hashed password or None if no password.
-    
+
     :param user: an instance of models.User or a user id value
     :returns: hashed password of the requested user, which may be None
     :raises ValueError: If no User with the given user_id value
@@ -149,10 +148,11 @@ async def get_password(session: AsyncSession,
     else:
         None
 
-async def set_password(session: AsyncSession, 
-                        user: models.User | int, 
-                        password: str
-                        ) -> models.UserPassword | None:
+
+async def set_password(session: AsyncSession,
+                       user: models.User | int,
+                       password: str
+                       ) -> models.UserPassword | None:
     """Set or update a user's password.
 
     :param user: a models.User or user id (int) of a User 

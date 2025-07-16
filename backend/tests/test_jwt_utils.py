@@ -80,3 +80,4 @@ def test_token_with_bad_payload(setup):
     with pytest.raises(KeyError):
         user_id = payload["user_id"]
         print("payload['user_id'] =", user_id)
+

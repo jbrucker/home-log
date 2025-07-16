@@ -80,3 +80,4 @@ async def test_user_password_property(session):
     hashed_password = user.user_password.hashed_password
     assert security.verify_password(plain_password, hashed_password) is True,\
         f"Passwords don't match. Hashed = {hashed_password}"
+
