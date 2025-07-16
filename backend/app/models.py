@@ -22,7 +22,7 @@
 
 # DateTime, Integer, TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, ForeignKey, String, Integer, TIMESTAMP, func
+from sqlalchemy import Boolean, ForeignKey, String, Integer, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
 #   from sqlalchemy.dialects.postgresql import UUID
@@ -30,7 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # To initialize table schema using SqlAlchemy,
 # you must use the Base defined in the database module
-from app.core.database import Base, db
+from app.core.database import Base
 from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME, MAX_UNIT_NAME
 
 
@@ -38,7 +38,9 @@ def utcnow() -> datetime:
     """Return the current datetime as a timezone aware value."""
     return datetime.now(timezone.utc)
 
+
 class User(Base):
+    """Persistenc model for a User."""
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
     email: Mapped[str] = mapped_column(String(MAX_EMAIL), unique=True, nullable=False)
@@ -46,7 +48,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
                                     nullable=False, 
-                                    #server_default=func.now()
+                                    # server_default=func.now()
                                     default=utcnow
                                     )
     # updated_at is automatically updated by database? 
@@ -64,13 +66,15 @@ class User(Base):
     # a uni-directional relationship.  
     # To make it bidirectional add backref=... 
     # or use back_populates=... on BOTH sides of the relationship
-    user_password: Mapped["UserPassword"] = relationship("UserPassword", 
-                                    # backref=("user",uselist=False),
-                                    uselist=False,  
+    user_password: Mapped["UserPassword"] = relationship(
+                                    "UserPassword",
+                                    backref="user",
+                                    uselist=False,
                                     cascade="all, delete-orphan"
                                     )
 
     def __str__(self) -> str:
+        """Return a string representation of a UserPassword instance."""
         return f'id={self.id} "{self.username[:40]}" <{self.email}>'
 
 
@@ -80,17 +84,19 @@ class UserPassword(Base):
     user_id: Mapped[int] = mapped_column(
                                     Integer,
                                     ForeignKey("users.id", ondelete="CASCADE"),
-                                    primary_key=True, 
+                                    primary_key=True,
                                     nullable=False
                                     )
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-                                    TIMESTAMP(timezone=True), 
+                                    TIMESTAMP(timezone=True),
                                     # server_default=func.now()
                                     default=utcnow
                                     )
-    
+
+
 class DataSource(Base):
+    """A source of data values, such as a meter or sensor."""
     __tablename__ = "data_sources"
     id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
     name: Mapped[str] = mapped_column(String(MAX_NAME), nullable=False)

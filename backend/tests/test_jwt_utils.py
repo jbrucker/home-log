@@ -10,12 +10,12 @@ from app.utils.jwt import create_access_token, verify_access_token
 
 @pytest.fixture()
 def user_data():
-    # Inject some data to use as payload in the JWT token
+    """Fixture to provide some data to use as payload in the JWT token."""
     return {"user_id": 999, "email": "santa@northpole.org"}
 
 
 def test_valid_token(user_data):
-    """token with valid expiry and the required data"""
+    """Token with valid expiry and the required data."""
     expires = 1
     token = create_access_token(user_data, expires=expires)
     created_time = datetime.now(timezone.utc)
@@ -29,7 +29,7 @@ def test_valid_token(user_data):
 
 
 def test_expired_token(user_data):
-    """verify token should raise exception if token has expired."""
+    """Verify token should raise exception if token has expired."""
     expires = -1  # in minutes
     token = create_access_token(user_data, expires=expires)
     assert token is not None
@@ -41,10 +41,11 @@ def test_expired_token(user_data):
     assert token is not None
     with pytest.raises(jose.exceptions.ExpiredSignatureError):
         payload = verify_access_token(token)
+        assert payload is not None
 
 
 def test_invalid_token(user_data):
-    """token with invalid syntax or non-matching SECRET_KEY."""
+    """Token with invalid syntax or non-matching SECRET_KEY."""
     expires = 1
     token = create_access_token(user_data, expires=expires)
     assert token is not None
@@ -66,9 +67,10 @@ def test_invalid_token(user_data):
         assert payload[key] == user_data[key]
 
 
-@pytest.mark.skip(reason="verify_access_token does not verify keys in payload. Token consumer should do that.")
+@pytest.mark.skip(reason="verify_access_token does not verify data in payload, by design. "
+                  + "Token consumer should verify payload contents.")
 def test_token_with_bad_payload(setup):
-    """token missing required user_id in payload."""
+    """Token missing required user_id in payload."""
     expires = 1
     # create test payload w/o 'user_id'
     data = {"email": "santa@northpole.org"}

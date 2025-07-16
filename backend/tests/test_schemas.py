@@ -1,27 +1,38 @@
+"""Tests of Pydantic schema classes."""
+
 import pytest
 from pydantic import ValidationError
 from datetime import datetime, timezone
+from app import models
 from app.schemas import UserCreate, User
 
+# Ignore E501 Line Too Long in tests.
+# Ignore F811 redefinition of unused import for test fixtures used as parameters
+# flake8: noqa: E501, F811
+
+
 def test_user_create_valid_email():
-    """can create a user with valid email and username"""
+    """Can create a user with valid email and username."""
     user = UserCreate(email="test@example.com", username="tester")
     assert user.email == "test@example.com"
     assert user.username == "tester"
 
+
 def test_user_invalid_email():
-    """email is required and must be a string having valid email syntax"""
+    """Email is required and must be a string having valid email syntax."""
     for bad_email in [2.5, "jomzap", "jim@foo", "@foo.com"]:
         with pytest.raises(ValidationError):
             user = User(email=bad_email, username="bad_email")
 
+
 def test_user_create_optional_username():
-    """username is optional and default value is None"""
+    """Username is optional and default value is None."""
     user = UserCreate(email="test@example.com")
     assert user.username is None
 
+
 def test_user_schema_fields():
-    """test that programmer is not incompetent"""
+    """Test that programmer is not incompetent, User schema has User model fields."""
     now = datetime(2025, 1, 31, 12, 0, 0, tzinfo=timezone.utc)
     user = User(
         email="user@example.com",
@@ -35,7 +46,9 @@ def test_user_schema_fields():
     assert user.created_at == now
     assert user.updated_at == now
 
-def test_user_model_inherits_user_create():
+
+def test_user_schema_inherits_user_create():
+    """User schema class should subclass UserCreate schema."""
     now = datetime.now(timezone.utc)
     user = User(
         id=2,
@@ -46,23 +59,33 @@ def test_user_model_inherits_user_create():
     )
     assert isinstance(user, UserCreate)
 
-def test_user_model_dates_default_to_current_date():
-    """can create a User object without created_at or updated_at"""
+
+def test_user_schema_dates_default_to_current_date():
+    """Can create a User object without created_at or updated_at."""
     user = User(id=3, email="eternal@blue.nsa.gov", username="Eternally")
     assert user.created_at is not None
     assert user.updated_at is not None
 
-def test_user_is_orm_model():
-    """can create User schema instance from attributes of a User model class"""
+
+def test_user_schema_is_orm_model():
+    """Can create User schema instance from attributes of a User model class."""
     assert User.model_config["from_attributes"] is True
+    # create model instance by directly populating from schema vars.
+    user_schema = User(id=3, email="eternal@blue.nsa.gov", username="Eternally")
+    user_model = models.User(**user_schema.model_dump())
+    assert isinstance(user_model, models.User)
+    assert user_model.id == user_schema.id
+    assert user_model.email == user_schema.email
+
 
 def test_validators_accept_non_latin_chars():
     """Validators should allow name and email to contain non-latin characters."""
     my_name = "กำโด่่ฑ้อยใเยิ็นให้ผูฟอห์ กำโด่่ฑ้อยใเยิ็นให้ผูฟอห์"
     my_email = "กำโด่่ฑ้อยใเยิ็นให้ผูฟอห์กำโด่่ฑ้อยใเยิ็นให้ผูฟอห์@foomail.co.uk"
-    user = User(username = my_name, email=my_email)
+    user = User(username=my_name, email=my_email)
     assert user.username == my_name
     assert user.email == my_email
+
 
 def test_invalid_email_address():
     """Validator rejects invalid email addresses."""

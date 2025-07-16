@@ -8,7 +8,6 @@
 import logging
 import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
-import pytest, pytest_asyncio
 from app.core import security
 from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
@@ -27,6 +26,7 @@ AUTH_USER_PASSWORD = "MakeMyDay"
 # WORK-AROUND: Put all session-level test configuration in conftext.py
 @pytest.fixture(scope="session")
 def globalsetup():
+    """Perform global configuration, but this is never invoked."""
     from .conftest import configure_logging, event_log
     event_log("Run fixtures.globalsetup()")
     configure_logging()
@@ -40,11 +40,12 @@ def globalsetup():
 async def session():
     """Test fixture that yields an AsyncSession for use in a test."""
     # Create tables before each test?
-    assert str(db.engine.url) == TEST_DATABASE_URL, f"Are you using a test database? Got db URL {str(db.engine.url)}"
+    assert str(db.engine.url) == TEST_DATABASE_URL, \
+           f"Are you using a test database? Got db URL {str(db.engine.url)}"
     await db.destroy_tables()
     await db.create_tables()
     # Or delete data from tables? Should be faster and less I/O.
-    #await db.delete_all_data2(models.Base)
+    # await db.delete_all_data2(models.Base)
     try:
         async for session in db.get_session():
             yield session
@@ -69,7 +70,7 @@ async def auth_user(session):
 
 @pytest.fixture()
 async def async_client():
-    """Async test fixture for client. DOES NOT WORK as FastAPI test client.
+    """Async test fixture for client, DOES NOT WORK as FastAPI test client.
        Use the `client` fixture instead.
     """
     from httpx import AsyncClient
