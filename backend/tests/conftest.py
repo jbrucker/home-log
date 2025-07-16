@@ -26,7 +26,7 @@ def event_log(message: str):
     """Write a timestamped message to a file to record pytest events.
        This is so I can what setup & teardown functions are executed, and the order.
     """
-    with open("event_log.txt", mode="a") as file:
+    with open("pytest.log", mode="a") as file:
         file.write(f"{datetime.now():%Y-%m-%d %T} {message}\n")
 
 
