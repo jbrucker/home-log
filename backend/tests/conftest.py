@@ -8,7 +8,7 @@
 
    In my tests, the fixture annotated with @fixture(scope="session")
    was never executed.
-   
+
    To verify that this file is found by pytest, use:  pytest --trace-config
 """
 import asyncio

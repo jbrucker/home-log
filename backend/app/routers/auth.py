@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,7 @@ async def loginform():
                             )
     return file_path.read_text(encoding="utf-8")
 
+
 @router.post('/login', response_model=schemas.Token)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
           session: Session = Depends(database.db.get_session)):
@@ -42,11 +43,10 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         logging.warning(f"Login for {email} with {password}")
         assert email is not None
         assert password is not None
-    except:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                            detail=f"Missing user email or password"
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Missing user email or password"
                             )
-
     user = await user_dao.get_user_by_email(session, email=email)
     if not user:
         raise HTTPException(

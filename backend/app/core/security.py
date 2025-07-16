@@ -18,7 +18,7 @@ def hash_password(password: str|bytes) -> str:
     """
     return pwd_context.hash(password)
 
-# TODO add exception handling
+
 def verify_password(plain_password: str|bytes, hashed_password: str|bytes) -> bool:
     """Verify a password against its Argon2 hash."""
     try:

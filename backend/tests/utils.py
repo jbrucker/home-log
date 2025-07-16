@@ -36,7 +36,7 @@ def as_utc_time(dt: datetime) -> datetime:
 async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
     """Create multiple users.  Assumes database and User table already initialized."""
     # TODO: Use same Session as the test method, or a separate Session?
-    
+
     for n in range(1, howmany+1):
         username = f"User{n}"
         email = f"{username.lower()}@{email_domain}"

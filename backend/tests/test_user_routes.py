@@ -17,7 +17,7 @@ from .utils import auth_header, create_users
 async def test_create_user(session, auth_user, client: TestClient):
     """An authorized user can create a new user entity."""
     # add authentication
-    
+
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
@@ -48,7 +48,7 @@ async def test_get_user(session, alexa, auth_user, client: TestClient):
     # add authentication?
     # the user to get
     user_id = alexa.id
-    result = client.get(f"/users/{user_id}", 
+    result = client.get(f"/users/{user_id}",
                         headers=auth_header(auth_user))   # auth not really required
     assert result.status_code == status.HTTP_200_OK
     # verify user data from response body
@@ -99,7 +99,7 @@ async def test_get_users_with_limit_and_offset(session, auth_user, client: TestC
         # none of them were returned previously
         assert not any(id in seen_ids for id in returned_ids)
         seen_ids.extend(returned_ids)
-    
+
     # If offset too large, then GET with offset returns an empty result
     offset = 1000
     result = client.get(f"/users/?limit=10&offset={offset}", headers=my_auth_header)
@@ -211,3 +211,4 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     # user should still be GET-able
     result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
+

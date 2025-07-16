@@ -67,12 +67,12 @@ async def test_email_must_be_unique(session):
     # because it will rollback the session if an exception occurs.
     # If the exception occurs inside the session context, it will not be caught.
     with pytest.raises(sqlalchemy.exc.SQLAlchemyError):
-        #async for session in db.get_session():   
+        #async for session in db.get_session():
         # should fail
         new_user2 = schemas.UserCreate(email=user1.email, username="Duplicate User")
         user2 = await user_dao.create(session, new_user2)
         assert user2 is None
-    
+
 @pytest.mark.asyncio
 async def test_update_user_success(session):
     """Can update an existing user's email and username; updated_at is updated automatically."""
@@ -91,7 +91,7 @@ async def test_update_user_success(session):
     assert updated_user.updated_at is not None
     assert updated_user.created_at == user.created_at  # created_at should not change
     # this could fail. Timestamp granularity depends on database
-    assert updated_user.updated_at > user.created_at   
+    assert updated_user.updated_at > user.created_at
 
 @pytest.mark.asyncio
 async def test_update_user_nonexistent(session):
