@@ -1,5 +1,6 @@
 """ORM operations for DataSource objects.
-   The DAO do not perform authorization checks -- application or service layer should do that.
+
+The DAO do not perform authorization checks -- application or service layer should do that.
 """
 
 from datetime import datetime, timezone

@@ -119,6 +119,10 @@ class DataSource(Base):
     # Related owner instance - without reverse relationship (no 'backpopulates' or 'backref')
     owner: Mapped["User"] = relationship("User", lazy="joined")
 
+    def components(self) -> list[str]:
+        """Return a list of string names of the data components, i.e. keys in data attribute."""
+        return list(self.data.keys())
+    
     def unit(self, value_name: str) -> str:
         """Return the unit name for a given value."""
         if value_name not in self.data:
@@ -134,11 +138,16 @@ class DataSource(Base):
 class Reading(Base):
     """A timestamp measurement(s) of value(s) of a DataSource."""
     __tablename__ = "readings"
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    # id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(
+                                    TIMESTAMP(timezone=True),
+                                    default=utcnow,
+                                    nullable=False
+                                    )
     data_source_id: Mapped[int] = mapped_column(
                                     Integer,
-                                    ForeignKey("data_sources.id",  ondelete="CASCADE"),
+                                    ForeignKey("data_sources.id", ondelete="CASCADE"),
                                     nullable=False
                                     )
     created_by_id: Mapped[int] = mapped_column(
@@ -166,9 +175,10 @@ class Reading(Base):
         self.values[value_name] = value
 
     def __str__(self) -> str:
-        """Return a string representation of a data source."""
-        created_str = self.created_at.strftime("%d-%m-%Y") if self.created_at else "None"
-        return f'id={self.id} "{self.name[:40]}" owner={self.owner_id} created {created_str}'
+        """Return a string representation of a reading."""
+        time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
+        return f'id={self.id} source={self.data_source_id} at {time_str} {self.values}'
+
 
 # For testing. Normally you should do this in app/core/database.py
 #

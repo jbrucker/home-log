@@ -88,16 +88,18 @@ class DataSource(DataSourceCreate):
 
 class ReadingCreate(BaseModel):
     """Schema for a new reading of a data source."""
-    data_source_id: Optional[int]
+    data_source_id: int
     # Allow reading values to be Any or require Number?
     values: dict[str, Any]
     created_by_id: Optional[int] = None
+    # Timestamp _may_ be specified
+    timestamp: Optional[datetime] = None
 
 
 class Reading(ReadingCreate):
     """Schema for a reading from a data source."""
-    id: UUID
-    timestamp: datetime = datetime.now(timezone.utc) 
+    id: int
+    timestamp: datetime = datetime.now(timezone.utc)
 
 
 class Token(BaseModel):

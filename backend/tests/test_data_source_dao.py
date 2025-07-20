@@ -218,10 +218,10 @@ async def test_get_data_sources_by_date(session, user1, user2):
     await session.commit()
     # The test:
     result = await dao.find(session,
-                                           models.DataSource.created_at >= start_date,
-                                           models.DataSource.created_at <= end_date,
-                                           owner_id=user1.id
-                                           )
+                            models.DataSource.created_at >= start_date,
+                            models.DataSource.created_at <= end_date,
+                            owner_id=user1.id
+                            )
     logger.info("DataSource matching the dates")
     for ds in result:
         logger.info(f"Matched: id={ds.id} {ds.name} owner={ds.owner_id}")
