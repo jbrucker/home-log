@@ -47,7 +47,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Missing user email or password"
                             )
-    user = await user_dao.get_user_by_email(session, email=email)
+    user = await user_dao.get_by_email(session, email=email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 

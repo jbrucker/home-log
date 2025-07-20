@@ -8,7 +8,7 @@ EMAIL_DOMAIN = "test.doma.in"
 
 
 def auth_header(arg: models.User | str) -> dict:
-    """Create an auth token for a user (if arg is User model) or use the given arg string
+    """Create an auth token for a user (if arg is User model) or containing arg (str)
        as a token, and return an authorization header containing the token.
     """
     if isinstance(arg, models.User):
@@ -47,14 +47,14 @@ def make_password() -> str:
         password += LOWERCASE[randint(0, 25)]
         password += UPPERCASE[randint(0, 25)]
         password += str(randint(0, 9))
-        password += SPECIALS[randint(0, len(SPECIALS)-1)]
+        password += SPECIALS[randint(0, len(SPECIALS)-1)]  # noqa: E226
     return password
+
 
 async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
     """Create multiple users.  Assumes database and User table already initialized."""
     # TODO: Use same Session as the test method, or a separate Session?
- 
-    for n in range(1, howmany+1):
+    for n in range(1, howmany + 1):
         username = f"User{n}"
         email = f"{username.lower()}@{email_domain}"
         session.add(models.User(username=username, email=email))

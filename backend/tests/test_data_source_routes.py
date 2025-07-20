@@ -1,16 +1,16 @@
-"""Test the FastAPI routes for /source"""
+"""Test the FastAPI routes for data sources."""
 from datetime import datetime, timezone
 from fastapi import status
 
-from fastapi.testclient import TestClient
-import pytest, pytest_asyncio
+import pytest
 from app import schemas
-from app.data_access import data_source_dao
-from app.core import security
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 from .fixtures import alexa, sally, client, auth_user, session
 from .utils import auth_header
+
+# Ignore F811 Parameter name shadows import
+# flake8: noqa: F811
 
 
 def test_create_data_source_as_authenticated(session, alexa, client):
@@ -28,7 +28,7 @@ def test_create_data_source_as_authenticated(session, alexa, client):
     """
     data = {
         "name": "Test Source",
-        "unit": "btu",
+        "data": {"Energy": "btu"}
     }
     create_time = datetime.now(timezone.utc)
     result = client.post("/sources/",
@@ -38,7 +38,8 @@ def test_create_data_source_as_authenticated(session, alexa, client):
     new_source = schemas.DataSource(**result.json())
     assert new_source.id > 0
     assert new_source.name == data["name"]
-    assert new_source.unit == data["unit"]
+    assert new_source.data == data["data"]
+    assert new_source.data["Energy"] == "btu"
     assert new_source.owner_id == alexa.id
     assert isinstance(new_source.created_at, datetime)
     assert new_source.created_at.date() >= create_time.date()
@@ -48,7 +49,7 @@ def test_unauthenticated_create_data_source_not_allowed(session, client):
     """Cannot create a data source without an authenticated user."""
     data = {
         "name": "Another Test Source",
-        "unit": "btu",
+        "data": {"Temperature": "deg-C"}
     }
     result = client.post("/sources/",
                           json=data)
@@ -59,7 +60,6 @@ def test_create_data_source_always_owned_by_auth_user(session, alexa, sally, cli
     """The owner of a new data source is always the user in the authentication request header."""
     data = {
         "name": "Another Test Source",
-        "unit": "btu",
         "owner_id": sally.id   # sally is not the authorized user, so this id should be ignored
     }
     # authenticate as alexa
@@ -77,7 +77,7 @@ async def test_update_data_source_success(session, alexa, client):
     """Authenticated user can update their own data source."""
     # Create a data source owned by Alexa
     token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
-    data = {"name": "Original Name", "unit": "kWh", "description": "Original description"}
+    data = {"name": "Original Name", "data": {"Wght": "lb"}, "description": "Original description"}
     auth_header_alexa = auth_header(alexa)
     response = client.post(
         "/sources/",
@@ -91,7 +91,7 @@ async def test_update_data_source_success(session, alexa, client):
     # Update the data source
     update_data = {
         "name": "Updated Name",
-        "unit": "MWh",
+        "data": {"wght": "kg"},
         "description": "Updated desc"
     }
     update_resp = client.put(
@@ -103,7 +103,7 @@ async def test_update_data_source_success(session, alexa, client):
     updated = update_resp.json()
     assert updated["id"] == source_id
     assert updated["name"] == update_data["name"]
-    assert updated["unit"] == update_data["unit"]
+    assert updated["data"] == update_data["data"]
     assert updated["description"] == update_data["description"]
     assert updated["owner_id"] == alexa.id
 
@@ -112,7 +112,7 @@ async def test_update_data_source_success(session, alexa, client):
 async def test_partial_update_preserves_old_data(session, alexa, client):
     """Fields not specified in an update request are not changed."""
     # Create a data source owned by Alexa
-    orig_data = {"name": "Original Name", "unit": "kWh", "description": "Original description"}
+    orig_data = {"name": "Original Name", "description": "Original description"}
     response = client.post("/sources/", headers=auth_header(alexa), json=orig_data)
     assert response.status_code == status.HTTP_201_CREATED
     source_id = response.json()["id"]
@@ -120,7 +120,7 @@ async def test_partial_update_preserves_old_data(session, alexa, client):
     # Update only some fields
     update_data = {
                     "name": "Updated Name",
-                    "unit": "MWh"
+                    "data": {"sys": "mmHg", "dia": "mmHg"}
                   }
     response = client.put(
                     f"/sources/{source_id}",
@@ -129,10 +129,12 @@ async def test_partial_update_preserves_old_data(session, alexa, client):
                     )
     assert response.status_code == status.HTTP_200_OK
     updated = response.json()
-    assert updated["name"] == update_data["name"]
-    assert updated["unit"] == update_data["unit"]
+    updated_ds = schemas.DataSource(**response.json())
+    assert updated_ds.name == update_data["name"]
+    assert updated_ds.data == update_data["data"]
+    assert updated_ds.data["dia"] == "mmHg"
     # still has original description
-    assert updated["description"] == orig_data["description"]
+    assert updated_ds.description == orig_data["description"]
 
 
 @pytest.mark.asyncio
@@ -142,12 +144,12 @@ async def test_unuathorized_update_data_source(session, alexa, sally, client):
     create_resp = client.post(
                     "/sources/",
                     headers=auth_header(alexa),
-                    json={"name": "Alexa's Source", "unit": "kWh"}
+                    json={"name": "Alexa's Source"}
                     )
     source_id = create_resp.json()["id"]
 
     # Sally tries to update Alexa's data source
-    update_data = {"name": "Sally's Update", "unit": "MWh"}
+    update_data = {"name": "Sally's Update"}
     update_resp = client.put(
                     f"/sources/{source_id}",
                     headers=auth_header(sally),
@@ -159,7 +161,7 @@ async def test_unuathorized_update_data_source(session, alexa, sally, client):
 @pytest.mark.asyncio
 async def test_update_data_source_not_found(session, alexa, client):
     """Returns 404 if attempt to update a data source that does not exist."""
-    update_data = {"name": "Doesn't Matter", "unit": "kWh"}
+    update_data = {"name": "Doesn't Matter", "data": {"Energy": "kWh"}}
     response = client.put(
                     "/sources/99999",
                     headers=auth_header(alexa),

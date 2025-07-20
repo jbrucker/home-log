@@ -98,7 +98,7 @@ async def test_user_password_property(session):
     plain_password = utils.make_password()
     await user_dao.set_password(session, user.id, plain_password)
     # Important! Get the user by id to force eager loading of relationship.
-    user = await user_dao.get_user(session, user.id)
+    user = await user_dao.get(session, user.id)
     # user.user_password refers to the related UserPassword object
     assert user.user_password is not None
     assert isinstance(user.user_password, models.UserPassword), f"get_user_password return a {type(user.user_password).__name__}"

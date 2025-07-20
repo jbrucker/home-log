@@ -1,35 +1,34 @@
-# experiments/users_sample.py
+"""Create a sample database and some users. """
 
 import asyncio
-from collections.abc import Collection
-from datetime import datetime, timezone
-from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.data_access import user_dao
+
+# Import ORM models
+from app.models import User, UserPassword
+from app.core.database import db
 
 # Database URL is defined in config.py
 # Override it here (before creating any async sessions) using:
 # from app.core.database import db
 # db.create_engine(new_database_url)
 #
-# Example urls:
-# DATABASE_URL = "sqlite+aiosqlite:///test.sqlite3"
+# Example:
+# DATABASE_URL = "sqlite+aiosqlite://./test.sqlite3"
+# DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 # DATABASE_URL = "postgresql+asyncpg://user:password@localhost/mydatabase"
-
-# Import ORM models
-from app.models import User, UserPassword
-from app.core.database import db 
+DATABASE_URL = "sqlite+aiosqlite://./dev.sqlite3"
 
 
-async def insert_sample_users():
+async def insert_sample_users(users: list[User] = None):
     """Insert sample users into the database."""
-
     # Sample users
-    users = [User(email="jim@hackers.com", username="Jim"),
-             User(email="harry@hackers.com", username="Harry"),
-             User(email="sally@hackers.com", username="Sally")
-             ]
+    if not users:
+        users = [User(email="jim@hackers.com", username="Jim"),
+                 User(email="harry@hackers.com", username="Harry"),
+                 User(email="sally@hackers.com", username="Sally")
+                ]
     password = "hackme2"
     
     async for session in db.get_session():
@@ -48,50 +47,51 @@ async def insert_sample_users():
         # Set passwords
         for user in users:
             user_password = UserPassword(
-                    user_id = user.id,
-                    hashed_password = security.hash_password(password)
+                    user_id=user.id,
+                    hashed_password=security.hash_password(password)
                     )
             session.add(user_password)
             await session.commit()
             await session.refresh(user_password)
 
-            print(f"Password for id {user_password.user_id} ({user.username}) is {user_password.hashed_password}")
+            print(f"Password for {user.username} (id {user.id}) "
+                  "is {user_password.hashed_password}")
 
 
-async def assign_user_passwords(emails: Collection[EmailStr], password: str) -> int:
-    """assign same password to several users, selected by email."""
-    change_count = 0
+async def assign_user_password(email: str, password: str) -> bool:
+    """Assign a password to a user, selected by email."""
     async for session in db.get_session():
-        for email in emails:
-            user = await user_dao.get_user_by_email(session, email)
-            if not user:
-                continue
-            await user_dao.set_password(session, user, password=password)
-            hashed = await user_dao.get_password(session, user)
-            print(f"Set password for {email} to {password}. Hash = {hashed}")
-            change_count += 1
-    return change_count    
+        user = await user_dao.get_by_email(session, email)
+        if not user:
+            return False
+        await user_dao.set_password(session, user, password=password)
+        hashed = await user_dao.get_password(session, user)
+        print(f"Set password for {email} to {password}. Hash = {hashed}")
+    return True
 
 
-
-async def main():
-    # use an in-memory SQLite database for testing
-    #database_url = "sqlite+aiosqlite:///:memory:"
-    database_url = "sqlite+aiosqlite:///./test.sqlite3"
-    db.create_engine(database_url)
-    print("Database engine url", str(db.engine.url))
+async def create_tables():
+    """Drop and recreate tables."""
     await db.destroy_tables()
     # Create tables if they don't exist
     await db.create_tables()
     print("Created tables")
-    
+
+
+async def main():
+    """Perform sample actions.  Create tables, insert users."""
+    database_url = DATABASE_URL
+    db.create_engine(database_url)
+    print("Database engine url", str(db.engine.url))
+
+    await create_tables()
+
     # Insert sample data
     await insert_sample_users()
-    #emails = ["tester@hackers.com", "jim@yahoo.com", "harry@hackerone.com"]
-    #await assign_user_passwords(emails, "hackme2")
+    # Setting passwords is done in insert_sample_users()
+    # emails = ["tester@hackers.com", "jim@yahoo.com", "harry@hackerone.com"]
+    # await assign_user_passwords(emails, "hackme2")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    #emails = ["tester@hackers.com", "jim@yahoo.com", "harry@hackerone.com"]
-    #asyncio.run(assign_user_passwords(emails, "hackme2"))

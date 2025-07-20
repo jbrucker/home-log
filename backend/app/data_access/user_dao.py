@@ -1,4 +1,4 @@
-"""ORM operations for user objects.
+"""Persistence operations for User objects.
 
 TODO:
    Encapsulate sqlalchemy exceptions in framework-independent exceptions.
@@ -32,7 +32,7 @@ async def create(session: AsyncSession, user_data: schemas.UserCreate) -> models
     return await base_dao.create(models.User, session, user_data)
 
 
-async def get_user(session: AsyncSession, user_id: int) -> models.User | None:
+async def get(session: AsyncSession, user_id: int) -> models.User | None:
     """Get a user using his id (primary key), and pre-fetched user_password relationship.
 
     :returns: models.User instance or None if no match for `user_id`
@@ -43,9 +43,9 @@ async def get_user(session: AsyncSession, user_id: int) -> models.User | None:
     return await base_dao.get_by_id(models.User, session, user_id, options=options)
 
 
-async def get_user_by_email(session: AsyncSession, email: str) -> models.User | None:
+async def get_by_email(session: AsyncSession, email: str) -> models.User | None:
     """Get a user from database using his email, and pre-fetched user_password relationship.
-    
+
     :returns: models.User instance or None if no match for `user_id`
     """
     options = joinedload(models.User.user_password)
@@ -70,13 +70,11 @@ async def get_users(session: AsyncSession, limit: int = 0, offset: int = 0) -> l
     return await base_dao.get_all(models.User, session, offset=offset, limit=limit)
 
 
-async def find_users(session: AsyncSession,
-                     *conditions,
-                     **filters) -> list[models.User]:
+async def find(session: AsyncSession, *conditions, **filters) -> list[models.User]:
     """
-    Get users matching arbitrary filter criteria
+    Get users matching arbitrary conditions and filter criteria.
 
-    :param conditions: SqlAlchemy filter expressions (e.g. models.User.id.
+    :param conditions: SqlAlchemy filter expressions (e.g. models.User.id > 1000).
     :param filters: dict of User attribute to arbitrary values (e.g. email="foo@bar.com")
     `filters` may include `limit=n` and `offset=m` to limit and paginate results (see get_users)
     :returns: list of matching entities, may be empty
@@ -87,8 +85,8 @@ async def find_users(session: AsyncSession,
     return await base_dao.find_by(models.User, session, *conditions, **filters)
 
 
-async def update_user(session: AsyncSession, user_id: int, 
-                      user_data: schemas.UserCreate) -> models.User | None:
+async def update(session: AsyncSession, user_id: int, 
+                 user_data: schemas.UserCreate) -> models.User | None:
     """Update the data for an existing user, identified by `user_id`.
 
     :param user_id: id (primary key) of User to update
@@ -97,7 +95,7 @@ async def update_user(session: AsyncSession, user_id: int,
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are invalid
     """
-    user = await get_user(session, user_id)
+    user = await get(session, user_id)
     if not user:
         raise ValueError(f"No user found with id {user_id}")
     # TODO Should we exclude unset fields?  It could make it impossible to "unset" an optional attribute.

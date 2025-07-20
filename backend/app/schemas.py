@@ -2,37 +2,39 @@
 
 These schemas are used in API route handlers.
 """
+
 import re
+# from annotated_types import MinLen, MaxLen
 from datetime import datetime, timezone
-from typing import Annotated, Optional
-from annotated_types import MinLen, MaxLen  # noqa: F401
+from typing import Annotated, Any, Optional
+from uuid import UUID
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, SecretStr
-from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME, MAX_UNIT_NAME
+from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME
 
 
-def _validate_password(password: SecretStr) -> SecretStr:
+def _validate_password(secret: SecretStr) -> SecretStr:
     """Enforce internal validation rules for passwords."""
-    value = password.get_secret_value()
+    password = secret.get_secret_value()
     errors = []
-    if not re.search(r"[A-Z]", value):
+    if not re.search(r"[A-Z]", password):
         errors.append("Missing uppercase letter A-Z")
-    if not re.search(r"[a-z]", value):
+    if not re.search(r"[a-z]", password):
         errors.append("Missing lowercase letter a-z")
-    if not re.search(r"\d", value):
+    if not re.search(r"\d", password):
         errors.append("Missing digit 0-9")
-    if re.match(r"^\s.*", value) or re.match(r".*\s$", value):
+    if re.match(r"^\s.*", password) or re.match(r".*\s$", password):
         errors.append("May not begin/end with whitespace")
     # Don't require special chars
     # if not re.search(r"[!@#$%^&*()_+{}\[\]:;<>,.?~\\-]", value):
-    #    rerrors.append("Missing special character (!@#$...)")
-    if re.search(r"(.)\1\1", value):
-        errors.append("3+ repeated characters in a row")
+    #    errors.append("Missing special character (!@#$...)")
+    if re.search(r"(.)\1\1", password):
+        errors.append("May not 3+ consecutive repeated character")
     if errors:
         raise ValueError(", ".join(errors))
-    return password
+    return secret
 
 
-# Define a custom validator for Password strings.
+# A custom validator for Password strings.
 PasswordStr = Annotated[
     SecretStr,                            # PasswordStr _is_ a SecretStr
     Field(min_length=7, max_length=255),  # Basic constraints
@@ -70,7 +72,8 @@ class DataSourceCreate(BaseModel):
     """Schema for creating a new DataSource."""
     name: str = Field(..., max_length=MAX_NAME)
     description: Optional[str] = Field(None, max_length=MAX_DESC)
-    unit: Optional[str] = Field(None, max_length=MAX_UNIT_NAME)
+    # The default value of 'data' is a dict with key "value" and unit name (value) ""
+    data: dict[str, str] = Field(default_factory=lambda: {"value": ""})
     # Need to be able to specify owner when source is created
     owner_id: Optional[int] = None
 
@@ -81,6 +84,20 @@ class DataSource(DataSourceCreate):
     owner_id: int
     created_at: datetime = datetime.now(timezone.utc)
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReadingCreate(BaseModel):
+    """Schema for a new reading of a data source."""
+    data_source_id: Optional[int]
+    # Allow reading values to be Any or require Number?
+    values: dict[str, Any]
+    created_by_id: Optional[int] = None
+
+
+class Reading(ReadingCreate):
+    """Schema for a reading from a data source."""
+    id: UUID
+    timestamp: datetime = datetime.now(timezone.utc) 
 
 
 class Token(BaseModel):

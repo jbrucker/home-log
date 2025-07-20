@@ -8,6 +8,7 @@ from app.data_access import data_source_dao as dao
 from .utils import as_utc_time
 from .fixtures import db, session
 
+# flake8: noqa: E251, F811
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,11 @@ async def ds_data() -> schemas.DataSourceCreate:
     ds_create = schemas.DataSourceCreate(
         name="Test Source",
         description="A test data source",
-        # no owner_id yet
-        unit="test unit"
+        data={"value1": "unit1"}
+        # no owner_id specified
     )
     return ds_create
+
 
 async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     """Create some data sources and persist them.
@@ -52,11 +54,14 @@ async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     created_ids = []
     async for session in db.get_session():
         for n in range(1, howmany+1):
+            # dict of "measurement_name: unit" 
+            values = {f"value{k}": f"unit{k}" for k in range(1, n+1)}
             ds_create = schemas.DataSourceCreate(
-                name = f"Data Source {n}",
-                description = f"The #{n} choice for data",
-                owner_id = owner.id,
-                unit=f"unit{n}")
+                name=f"Data Source {n}",
+                description=f"The #{n} choice for data",
+                owner_id=owner.id,
+                values=values
+                )
             ds = models.DataSource(**ds_create.model_dump())
             session.add(ds)
             await session.commit()
@@ -72,13 +77,13 @@ async def test_create_data_source(session, ds_data, user1):
     ds_data.owner_id = user1.id
     # Call the DAO to create the data source
     starting_time = datetime.now(timezone.utc)
-    ds = await dao.create_data_source(session, ds_data)
+    ds = await dao.create(session, ds_data)
     assert isinstance(ds, models.DataSource)
     assert ds.id is not None
     assert ds.owner_id == user1.id
     assert ds.name == "Test Source"
     assert ds.description == "A test data source"
-    assert ds.unit == "test unit"
+    assert ds.data == {"value1": "unit1"}
     # automatically assigned
     # Cludge: SQLite datetime is not timezone aware
     assert as_utc_time(ds.created_at) >= starting_time
@@ -91,11 +96,11 @@ async def test_get_data_source_by_id(session, ds_data, user1):
     ids = await create_data_sources(5, user1)
     ds_data.owner_id = user1.id
     # Call the DAO to create the data source
-    ds = await dao.create_data_source(session, ds_data)
+    ds = await dao.create(session, ds_data)
     # create a few more
     await create_data_sources(4, user1)
     # fetch a particular one
-    result = await dao.get_data_source(session, ds.id)
+    result = await dao.get(session, ds.id)
     assert result is not None
     assert result.id == ds.id
     assert result.name == ds_data.name
@@ -105,25 +110,25 @@ async def test_get_data_source_by_id_includes_owner(session, ds_data, user1):
     """When you get a data source it includes the owner reference as a User model."""
     ds_data.owner_id = user1.id
     # Call the DAO to create the data source
-    ds = await dao.create_data_source(session, ds_data)
+    ds = await dao.create(session, ds_data)
     # fetch a particular one
-    result = await dao.get_data_source(session, ds.id)
+    result = await dao.get(session, ds.id)
     assert isinstance(result.owner, models.User)
     assert result.owner.email == user1.email
 
 @pytest.mark.asyncio
 async def test_get_data_source_by_id_not_found(session, user1):
     # initially no DataSources in persistence
-    result = await dao.get_data_source(session, 99999)
+    result = await dao.get(session, 99999)
     assert result is None
     ids = await create_data_sources(10, user1)
-    result = await dao.get_data_source(session, 99999)
+    result = await dao.get(session, 99999)
     assert result is None
 
 @pytest.mark.asyncio
 async def test_get_data_source_by_owner(session, user1, user2):
     """Can get all data sources for a given owner."""
-    ds1 = await dao.create_data_source(
+    ds1 = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="Owner1 Source1",
@@ -131,7 +136,7 @@ async def test_get_data_source_by_owner(session, user1, user2):
             owner_id=user1.id
         )
     )
-    ds2 = await dao.create_data_source(
+    ds2 = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="Owner1 Source2",
@@ -139,7 +144,7 @@ async def test_get_data_source_by_owner(session, user1, user2):
             owner_id=user1.id
         )
     )
-    ds3 = await dao.create_data_source(
+    ds3 = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="Owner2 Source1",
@@ -147,8 +152,8 @@ async def test_get_data_source_by_owner(session, user1, user2):
             owner_id=user2.id
         )
     )
-    user1_sources = await dao.get_data_sources_by(session, owner_id=user1.id)
-    user2_sources = await dao.get_data_sources_by(session, owner_id=user2.id)
+    user1_sources = await dao.find(session, owner_id=user1.id)
+    user2_sources = await dao.find(session, owner_id=user2.id)
     assert len(user1_sources) == 2
     assert all(ds.owner_id == user1.id for ds in user1_sources)
     assert len(user2_sources) == 1
@@ -157,7 +162,7 @@ async def test_get_data_source_by_owner(session, user1, user2):
 @pytest.mark.asyncio
 async def test_get_data_source_for_owner_with_none(session, user1, user2):
     """If a user does not own any data sources, it returns None."""
-    ds1 = await dao.create_data_source(
+    ds1 = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="Owner1 Source1",
@@ -165,7 +170,7 @@ async def test_get_data_source_for_owner_with_none(session, user1, user2):
             owner_id=user1.id
         )
     )
-    ds2 = await dao.create_data_source(
+    ds2 = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="Owner1 Source2",
@@ -173,7 +178,7 @@ async def test_get_data_source_for_owner_with_none(session, user1, user2):
             owner_id=user1.id
         )
     )
-    user2_sources = await dao.get_data_sources_by(session, owner_id=user2.id)
+    user2_sources = await dao.find(session, owner_id=user2.id)
     assert isinstance(user2_sources, list)
     assert len(user2_sources) == 0
 
@@ -188,8 +193,8 @@ async def test_get_data_sources_by_date(session, user1, user2):
     month = 3  # 3 is March
     day = 1
     # Get all their data sources
-    user1_ds = await dao.get_data_sources_by(session, owner_id=user1.id)
-    user2_ds = await dao.get_data_sources_by(session, owner_id=user2.id)
+    user1_ds = await dao.find(session, owner_id=user1.id)
+    user2_ds = await dao.find(session, owner_id=user2.id)
     assert user1_ds_ids == [ds.id for ds in user1_ds]
     assert user2_ds_ids == [ds.id for ds in user2_ds]
     assert len(user1_ds) == 20
@@ -212,7 +217,7 @@ async def test_get_data_sources_by_date(session, user1, user2):
         day += 1
     await session.commit()
     # The test:
-    result = await dao.get_data_sources_by(session,
+    result = await dao.find(session,
                                            models.DataSource.created_at >= start_date,
                                            models.DataSource.created_at <= end_date,
                                            owner_id=user1.id
@@ -225,7 +230,7 @@ async def test_get_data_sources_by_date(session, user1, user2):
 
 @pytest.mark.asyncio
 async def test_update_data_source(session, user1):
-    ds = await dao.create_data_source(
+    ds = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="To Update",
@@ -239,14 +244,14 @@ async def test_update_data_source(session, user1):
         name="Updated Name",
         description="After update",
         # owner_id=user1.id,
-        unit="grams"
+        data={"weight": "grams"}
     )
     # TODO What _should_ happen to attributes that are unspecified in the update?
-    updated = await dao.update_data_source(session, ds.id, update_data)
+    updated = await dao.update(session, ds.id, update_data)
     assert updated.id == ds_id
     assert updated.name == "Updated Name"
     assert updated.description == "After update"
-    assert updated.unit == "grams", "update did not set the unit"
+    assert updated.data["weight"] == "grams", "update did not set the unit"
     assert updated.owner_id == user1.id, "update changed owner_id which was unspecified in update"
 
 @pytest.mark.asyncio
@@ -257,13 +262,13 @@ async def test_update_nonexistent_data_source(session):
         owner_id=1
     )
     with pytest.raises(ValueError):
-        await dao.update_data_source(session, 99999, update_data)
+        await dao.update(session, 99999, update_data)
 
 @pytest.mark.asyncio
 async def test_delete_data_source(session, user1):
     """Can delete a data source by id"""
     await create_data_sources(5, user1)  # for obfuscation
-    ds = await dao.create_data_source(
+    ds = await dao.create(
         session,
         schemas.DataSourceCreate(
             name="To Delete",
@@ -279,7 +284,7 @@ async def test_delete_data_source(session, user1):
     assert deleted is not None
     #assert deleted.id == ds.id
     # Should not be found anymore
-    result = await dao.get_data_source(session, ds_id)
+    result = await dao.get(session, ds_id)
     assert result is None
 
 @pytest.mark.asyncio

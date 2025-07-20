@@ -1,8 +1,8 @@
-"""Test the FastAPI routes for /user"""
+"""Test the FastAPI routes for /user."""
 from fastapi import Response, status
 
 from fastapi.testclient import TestClient
-import pytest, pytest_asyncio
+import pytest
 from app import schemas
 from app.data_access import user_dao
 from app.utils import jwt
@@ -12,6 +12,8 @@ from .fixtures import client, auth_user, session
 from .fixtures import alexa, sally
 from .utils import auth_header, create_users
 
+# flake8: noqa: F811
+# F811 redefinition of import by parameter (fixtures)
 
 @pytest.mark.asyncio
 async def test_create_user(session, auth_user, client: TestClient):
@@ -30,7 +32,7 @@ async def test_create_user(session, auth_user, client: TestClient):
     assert new_user.email == USER_EMAIL
     assert new_user.username == USER_NAME
     # new user is in database, too
-    user = await user_dao.get_user_by_email(session, email=USER_EMAIL)
+    user = await user_dao.get_by_email(session, email=USER_EMAIL)
     assert user is not None
     assert user.username == USER_NAME
     # cannot add another user with same email
@@ -205,10 +207,9 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     # Should be either FORBIDDEN or UNAUTHORIZED
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
     # user is still in persistent storage
-    user = await user_dao.get_user(session, user_id)
+    user = await user_dao.get(session, user_id)
     assert user is not None, f"Unauthorized delete request deleted user {str(sally)}"
     assert user.id == user_id, f"Unauthorized delete request changed user id of {str(sally)}"
     # user should still be GET-able
     result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
-

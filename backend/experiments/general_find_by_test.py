@@ -53,8 +53,8 @@ async def run_get_data_sources_by_date(session, user1, user2):
     user2_ds_ids = await create_data_sources(20, user2)
 
     # Get all their data sources
-    user1_ds = await dao.get_data_sources_by(session, owner_id=user1.id)
-    user2_ds = await dao.get_data_sources_by(session, owner_id=user2.id)
+    user1_ds = await dao.find(session, owner_id=user1.id)
+    user2_ds = await dao.find(session, owner_id=user2.id)
     assert user1_ds_ids == [ds.id for ds in user1_ds]
     assert user2_ds_ids == [ds.id for ds in user2_ds]
     assert len(user1_ds) == 20
@@ -69,12 +69,12 @@ async def run_get_data_sources_by_date(session, user1, user2):
     end_date = datetime(year, month, 10, tzinfo=timezone.utc)
     
     print("Data sources for", user1)
-    result = await dao.get_data_sources_by(session, owner_id=user1.id)
+    result = await dao.find(session, owner_id=user1.id)
     print_results(result)
 
     input(f"All DS created between {start_date:%d-%m-%Y} and {end_date:%d-%m-%Y}...")
     # The test:
-    result = await dao.get_data_sources_by(session,
+    result = await dao.find(session,
                                            models.DataSource.created_at >= start_date,
                                            models.DataSource.created_at <= end_date
                                            )
@@ -82,14 +82,14 @@ async def run_get_data_sources_by_date(session, user1, user2):
 
     end_date = datetime(year, month, 4, tzinfo=timezone.utc)
     input(f"DS owned by {user2} and created before {end_date:%d-%m-%Y}...")
-    result = await dao.get_data_sources_by(session,
+    result = await dao.find(session,
                                            models.DataSource.created_at <= end_date,
                                            owner_id=user2.id
                                            )
     print_results(result)
 
     input(f"Cars owned by {user2}...")
-    result = await dao.get_data_sources_by(session,
+    result = await dao.find(session,
                                            models.DataSource.name.contains("Car"),
                                            owner_id=user2.id
                                            )

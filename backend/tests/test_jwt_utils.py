@@ -68,7 +68,7 @@ def test_invalid_token(user_data):
 
 
 @pytest.mark.skip(reason="verify_access_token does not verify data in payload, by design. "
-                  + "Token consumer should verify payload contents.")
+                  "Token consumer should verify the payload contents.")
 def test_token_with_bad_payload(setup):
     """Token missing required user_id in payload."""
     expires = 1
