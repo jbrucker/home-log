@@ -12,15 +12,17 @@ router = APIRouter(prefix="/sources/{source_id}/readings", tags=["readings"])
 
 
 @router.post("/", response_model=schemas.Reading, status_code=status.HTTP_201_CREATED)
-async def create_reading(reading_data: schemas.ReadingCreate,
+async def create_reading(source_id: int,
+                         reading_data: schemas.ReadingCreate,
                          request: Request,
                          response: Response,
                          session: AsyncSession = Depends(db.get_session),
                          current_user: models.User = Depends(oauth2.get_current_user)):
-    """Create a new reading from a data source."""
+    """Create a new reading for a data source."""
     # Data source must exist and belong to current user
-    source_id = reading_data.data_source_id
-    ds: models.DataSource = data_source_dao.get(source_id)
+    if source_id != reading_data.data_source_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Reading data source_id does not match id {source_id} in URL")
+    ds: models.DataSource = data_source_dao.get(session, source_id)
     if not ds:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"No data source with id {source_id}")
     if not ds.owner_id == current_user.id:
@@ -40,18 +42,19 @@ async def create_reading(reading_data: schemas.ReadingCreate,
 
 
 @router.get("/{reading_id}", response_model=schemas.Reading)
-async def get_reading(source_id: int, 
+async def get_reading(source_id: int,
                       reading_id: int,
                       session: AsyncSession = Depends(db.get_session),
                       current_user: models.User = Depends(oauth2.get_current_user)
                       ) -> schemas.Reading:
-    """Get one data source reading identfied by its id."""
+    """Get one reading from a data source, identified by the reading id."""
+    reading = reading_dao.find(session, id==reading_id, data_source_id=source_id)
     ds: models.DataSource = data_source_dao.get(source_id)
     if not ds:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"No data source with id {source_id}")
     if not ds.owner_id == current_user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not your data source")
-    reading = reading_dao.get(session, reading_id)
+    
     if reading is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Reading id {reading_id} not found")
     # Ensure this reading belongs to this data source
@@ -68,7 +71,6 @@ async def get_readings(source_id: int,
                         current_user: models.User = Depends(oauth2.get_current_user)):
     """Get multiple data source readings."""
     pass
-
 
 
 @router.put("/{reading_id}", response_model=schemas.Reading)

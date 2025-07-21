@@ -106,7 +106,7 @@ class DataSource(Base):
                                     nullable=True
                                     )
     description: Mapped[str] = mapped_column(String(MAX_DESC), nullable=True)
-    # dict of measurement names and corresponding measurement unit name
+    # dict of measurement names and corresponding measurement unit
     # Use MutableDict or plain JSON?  DataSource should not change much.
     data: Mapped[dict[str, str]] = mapped_column(MutableDict.as_mutable(JSON))
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -122,7 +122,7 @@ class DataSource(Base):
     def components(self) -> list[str]:
         """Return a list of string names of the data components, i.e. keys in data attribute."""
         return list(self.data.keys())
-    
+
     def unit(self, value_name: str) -> str:
         """Return the unit name for a given value."""
         if value_name not in self.data:

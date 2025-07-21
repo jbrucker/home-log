@@ -1,9 +1,12 @@
 """Create a sample database and some users. """
 
 import asyncio
+from typing import Type
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.data_access import user_dao
+from app import models
 
 # Import ORM models
 from app.models import User, UserPassword
@@ -15,10 +18,10 @@ from app.core.database import db
 # db.create_engine(new_database_url)
 #
 # Example:
-# DATABASE_URL = "sqlite+aiosqlite://./test.sqlite3"
+# DATABASE_URL = "sqlite+aiosqlite:///./test.sqlite3"
 # DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 # DATABASE_URL = "postgresql+asyncpg://user:password@localhost/mydatabase"
-DATABASE_URL = "sqlite+aiosqlite://./dev.sqlite3"
+DATABASE_URL = "sqlite+aiosqlite:///./dev.sqlite3"
 
 
 async def insert_sample_users(users: list[User] = None):
@@ -28,7 +31,7 @@ async def insert_sample_users(users: list[User] = None):
         users = [User(email="jim@hackers.com", username="Jim"),
                  User(email="harry@hackers.com", username="Harry"),
                  User(email="sally@hackers.com", username="Sally")
-                ]
+                ]  # noqa: E124
     password = "hackme2"
     
     async for session in db.get_session():
@@ -78,16 +81,36 @@ async def create_tables():
     print("Created tables")
 
 
+async def create_table(table: Type[models.Base]):
+    """Create specific table(s)."""
+    async with db.engine.begin() as connection:
+        # This creates all tables
+        # await connection.run_sync(Base.metadata.create_all)
+        # Create a specific table
+        await connection.run_sync(table.__table__.create, checkfirst=True)
+
+
+async def get_table_names():
+    """Return a list(?) of table names."""
+    async with db.engine.begin() as conn:
+        table_names = inspect(conn).get_table_names()
+    print(table_names)
+    return table_names
+
+
 async def main():
     """Perform sample actions.  Create tables, insert users."""
     database_url = DATABASE_URL
     db.create_engine(database_url)
     print("Database engine url", str(db.engine.url))
 
-    await create_tables()
+    #await create_tables()
+    await create_table(models.Reading)
+    await get_table_names()
 
     # Insert sample data
-    await insert_sample_users()
+    # await insert_sample_users()
+
     # Setting passwords is done in insert_sample_users()
     # emails = ["tester@hackers.com", "jim@yahoo.com", "harry@hackerone.com"]
     # await assign_user_passwords(emails, "hackme2")
