@@ -86,15 +86,28 @@ class DataSource(DataSourceCreate):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ReadingCreate(BaseModel):
-    """Schema for a new reading of a data source."""
-    # Data Source id is required in DAO
-    data_source_id: int
+class ReadingData(BaseModel):
+    """Schema for a required Reading data for reading from a specific DataSource.
+    
+    This omits the data_source_id and created_by_id, since:
+    - in a request the data source id is a path param, created_by_id is the current user's id
+    - in a response, data_source_id is redundant (omit to save space)
+    """
     # Allow reading values to be Any or require Number?
     values: dict[str, Any]
-    created_by_id: Optional[int] = None
-    # Timestamp _may_ be specified
+    # Timestamp should be specified
     timestamp: Optional[datetime] = None
+    created_by_id: Optional[int] = None
+
+
+class ReadingCreate(ReadingData):
+    """Schema to create a new reading contains reading data + refs to data source and creator."""
+    # Data Source id is required in DAO
+    data_source_id: int
+    # Creator is required
+    created_by_id: int = None
+    # Timestamp should be specified or required?
+    # timestamp: Optional[datetime] = None
 
 
 class Reading(ReadingCreate):

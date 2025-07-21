@@ -15,7 +15,7 @@ from app.data_access import data_source_dao, user_dao
 from app.utils import oauth2
 
 # add option prefix="/source" to factor out path prefix.
-router = APIRouter(tags=["data source"])
+router = APIRouter(tags=["Data Source"])
 
 
 @router.get("/sources")
