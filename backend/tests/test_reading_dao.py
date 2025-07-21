@@ -43,7 +43,7 @@ async def ds1(session, user1: models.User) -> models.DataSource:
     ds = models.DataSource(
         name="Data Source 1",
         description="A data source with 1 component",
-        data={"value1": "unit1"},
+        data={"Energy": "kWh"},
         owner_id=user1.id
     )
     session.add(ds)
@@ -97,12 +97,12 @@ async def create_readings(howmany: int, ds: models.DataSource, value=None) -> li
 
 @pytest.mark.asyncio
 async def test_create_reading(session, ds1: models.DataSource, user1: models.User):
-    """Can create and persist a DataSource with a given owner (user1)."""
-    value_name = ds1.components()[0]
+    """Can create and persist a Reading with a given owner (user1)."""
+    value_names = ds1.components()
     # Create a Reading schema with required fields
     data = schemas.ReadingCreate(data_source_id=ds1.id, 
                                  created_by_id=user1.id,
-                                 values={value_name: 2.5}
+                                 values={name: 0.5 for name in value_names}
                                  )
     # Call the DAO to create the reading
     starting_time = datetime.now(timezone.utc)
@@ -110,33 +110,31 @@ async def test_create_reading(session, ds1: models.DataSource, user1: models.Use
     assert isinstance(reading, models.Reading)
     assert reading.id is not None
     assert reading.data_source_id == ds1.id
-    assert reading.data[value_name] == 2.5
-    # timestamp is automatically 
+    assert all(reading.values[name] == 0.5 for name in value_names)
+    # timestamp is automatically assigned
     assert reading.timestamp is not None
     # Cludge: SQLite datetime is not timezone aware
     assert as_utc_time(reading.timestamp) >= starting_time
 
 
 @pytest.mark.asyncio
-async def test_create_reading(session, ds1: models.DataSource, user1: models.User):
-    """Can create and persist a DataSource with a given owner (user1)."""
-    value_name = ds1.components()[0]
+async def test_cannot_create_reading_with_wrong_components(
+    session, ds1: models.DataSource, user1: models.User):
+    """Cannot create and persist a DataSource with a given owner (user1)."""
+    value_names = ds1.components()[0]
+    values = {name: 1.0 for name in value_names}
+    # Bogus reading data
+    bad_name = "NOT_" + value_names[0]
+    values[bad_name] = 0.0
     # Create a Reading schema with required fields
     data = schemas.ReadingCreate(data_source_id=ds1.id, 
                                  created_by_id=user1.id,
-                                 values={value_name: 0.5}
+                                 values=values
                                  )
-    # Call the DAO to create the reading
-    starting_time = datetime.now(timezone.utc)
-    reading = await dao.create(session, data)
-    assert isinstance(reading, models.Reading)
-    assert reading.id is not None
-    assert reading.data_source_id == ds1.id
-    assert reading.values[value_name] == 0.5
-    # timestamp is automatically assigned
-    assert reading.timestamp is not None
-    # Cludge: SQLite datetime is not timezone aware
-    assert as_utc_time(reading.timestamp) >= starting_time
+    with pytest.raises(ValueError):
+        reading = await dao.create(session, data)
+        assert reading is None
+
 
 @pytest.mark.asyncio
 async def test_get_reading_by_id(session, ds1):
@@ -209,15 +207,19 @@ async def test_get_readings_by_timestamp(session, ds1, ds2):
 @pytest.mark.asyncio
 async def test_update_reading(session, ds2, user1):
     """Update an existing reading replaces only the fields specified in update data."""
-    ids = await create_readings(1, ds2, value=20)
-    # The only reading created
+    ids = await create_readings(5, ds2, value=20)
+    # Choose a reading to update
     reading = await dao.get(session, ids[0])
+    # vars creates a dict of an object's attributes
     original = vars(reading)
-    # change reading data. Assumes ds2 has 2 data components
+    # change reading data. Assumes ds2 has at least 2 data components
     components = ds2.components()
+    assert len(components) >= 2, "Test requires a data source with at least 2 data components"
     first = components[0]
     second = components[1]
-    values = {first: 111, second: 2.5} 
+    values = dict.copy(reading.values)
+    values[first] += 10
+    values[second] = values[second] * 2 + 1
     updates = schemas.ReadingCreate(data_source_id=ds2.id, created_by_id=user1.id, values=values)
     updated = await dao.update(session, reading.id, updates)
     assert updated.id == original['id']
@@ -227,6 +229,22 @@ async def test_update_reading(session, ds2, user1):
     # did not change other attributes
     assert updated.timestamp == original["timestamp"]
     assert updated.data_source_id == original["data_source_id"]
+
+
+@pytest.mark.asyncio
+async def test_update_reading_with_invalid_measurement(session, ds2, user1):
+    """Update should raise exception if any value names are not value names of the DataSource."""
+    ids = await create_readings(5, ds2, value=20)
+    # Choose a reading to update
+    reading = await dao.get(session, ids[1])
+    # Get the existing reading data and append some bogus data
+    values = dict.copy(reading.values)
+    # append a bogus value
+    values["SHOULD_NOT_EXIST"] = 1
+    updates = schemas.ReadingCreate(data_source_id=ds2.id, created_by_id=user1.id, values=values)
+    with pytest.raises(ValueError):
+        updated = await dao.update(session, reading.id, updates)
+        assert updated in None
 
 
 @pytest.mark.asyncio

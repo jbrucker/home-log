@@ -1,5 +1,6 @@
 """Persistence operations for Reading objects."""
 
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 # select is now asynchronous by default, so don't need to import from sqlachemy.future
 
@@ -22,6 +23,13 @@ async def create(session: AsyncSession, reading_data: schemas.ReadingCreate) -> 
     Does NOT validate that the reading components names (keys in values) match keys
     in DataSource definition.
     """
+    data_source_id = reading_data.data_source_id
+    if not data_source_id:
+        raise ValueError("Missing data source id")
+    ds = await base_dao.get_by_id(models.DataSource, session, data_source_id)
+    if not ds:
+        raise ValueError(f"No data source for id {data_source_id}")
+    verify_values(reading_data.values, ds)
     return await base_dao.create(models.Reading, session, reading_data)
 
 
@@ -65,14 +73,24 @@ async def update(session: AsyncSession,
     reading = await base_dao.get_by_id(models.Reading, session, reading_id)
     if not reading:
         raise ValueError(f"Unknown reading id {reading_id}")
+    data_source_id = reading_data.data_source_id
+    if not data_source_id:
+        raise ValueError(f"Missing data source id in update data {reading_data}")
+    ds = await base_dao.get_by_id(models.DataSource, session, data_source_id)
+    if not ds:
+        raise ValueError(f"No data source for id {data_source_id}")
+    verify_values(reading_data.values, ds)
     # General way to get the attributes in an instance of a class:
     #   vars(instance_ref)
     # Pydantic method for schemas:
     #   schema_instance.model_dump(exclude_unset=True)
     # Both return a dict
-    for (key, value) in vars(reading_data).items():
-        # update the attribute
-        setattr(reading, key, value)
+    for (key, value) in reading_data.model_dump(exclude_unset=True).items():
+        # update the attribute unless None
+        if value:
+            setattr(reading, key, value)
+        else:
+            logger.warning("update: not updating {key}={value} from {reading_data}")
     await session.commit()
     await session.refresh(reading)
     logger.info(f"Updated Reading id={reading.id} fields: {vars(reading_data)}")
@@ -85,3 +103,14 @@ async def delete_reading(session: AsyncSession, reading_id: int) -> models.Readi
     :returns: data for the deleted entity or None if no match for the id.
     """
     return await base_dao.delete_by_id(models.Reading, session, reading_id)
+
+
+def verify_values(values: dict[str, Any], ds: models.DataSource) -> bool:
+    """Verify that all keys in the `values` dict are components in the datasource data.
+
+    :raises ValueError: if any key in `values` is not a component of DataSource data
+    """
+    for key in values.keys():
+        if key not in ds.components():
+            raise ValueError(f'Reading data: "{key}" is not a component of DataSource {ds.id}')
+    return True

@@ -26,7 +26,7 @@ async def create(session: AsyncSession,
     :raises ValueError: if any required values are missing or invalid (Note)
 
     Note: the Schema object should perform data validation, so a ValueError on
-          save indicates an inconsistency between schema validators and 
+          save indicates an inconsistency between schema validators and
           database requirements.
     """
     return await base_dao.create(models.DataSource, session, data)
@@ -34,7 +34,7 @@ async def create(session: AsyncSession,
 
 async def get(session: AsyncSession, data_source_id: int) -> models.DataSource | None:
     """Get a data source from database using its id (primary key).
-    
+
     :returns: models.DataSource instance or None if no match for id
     """
     if not isinstance(data_source_id, int) or data_source_id <= 0:
@@ -70,7 +70,7 @@ async def update(session: AsyncSession, data_source_id: int,
     if not data_source:
         logger.warning(f"Attempt to update non-existent DataSource id={data_source_id}")
         raise ValueError(f"No data source found with id {data_source_id}")
-    # TODO Get all fields or only the "set" fields?
+    # TODO Update all fields or only the "set" fields?
     update_data = source_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(data_source, field, value)

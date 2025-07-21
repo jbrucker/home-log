@@ -74,6 +74,7 @@ async def test_email_must_be_unique(session):
         user2 = await user_dao.create(session, new_user2)
         assert user2 is None
 
+
 @pytest.mark.asyncio
 async def test_update_user_success(session):
     """Can update an existing user's email and username; updated_at is updated automatically."""

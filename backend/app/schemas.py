@@ -88,6 +88,7 @@ class DataSource(DataSourceCreate):
 
 class ReadingCreate(BaseModel):
     """Schema for a new reading of a data source."""
+    # Data Source id is required in DAO
     data_source_id: int
     # Allow reading values to be Any or require Number?
     values: dict[str, Any]
