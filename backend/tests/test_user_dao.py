@@ -10,6 +10,9 @@ from app.data_access import user_dao
 from .fixtures import session
 from .utils import EMAIL_DOMAIN, create_users
 
+# Ignore F811 Parameter name shadows import
+# flake8: noqa: F811
+
 
 @pytest.mark.asyncio
 async def test_create_user(session):

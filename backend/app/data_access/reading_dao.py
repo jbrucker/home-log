@@ -11,26 +11,25 @@ from app.data_access import base_dao
 logger = logging.getLogger(__name__)
 
 
-async def create(session: AsyncSession, reading_data: schemas.ReadingCreate) -> models.Reading:
+async def create(session: AsyncSession, data: schemas.ReadingCreate) -> models.Reading:
     """Add a new user to persistent storage, assigning a user id and creation date.
 
     :param session: database connection "session" object
-    :param reading_data: schema object containing attributes for a new reading entity
+    :param data: schema object containing attributes for a new reading entity
     :returns: a Reading model instance with persisted values
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are missing or invalid
 
-    Does NOT validate that the reading components names (keys in values) match keys
-    in DataSource definition.
+    Validation of presence of required fields in ReadingCreate is done by Pydantic.
     """
-    data_source_id = reading_data.data_source_id
+    data_source_id = data.data_source_id
     if not data_source_id:
         raise ValueError("Missing data source id")
     ds = await base_dao.get_by_id(models.DataSource, session, data_source_id)
     if not ds:
         raise ValueError(f"No data source for id {data_source_id}")
-    verify_values(reading_data.values, ds)
-    return await base_dao.create(models.Reading, session, reading_data)
+    verify_values(data.values, ds)
+    return await base_dao.create(models.Reading, session, data)
 
 
 async def get(session: AsyncSession, reading_id: int) -> models.Reading | None:
@@ -61,11 +60,11 @@ async def find(session: AsyncSession, *conditions, **filters) -> list[models.Rea
 
 async def update(session: AsyncSession,
                  reading_id: int,
-                 reading_data: schemas.ReadingCreate) -> models.Reading | None:
+                 update_data: schemas.ReadingCreate) -> models.Reading | None:
     """Update the data for an existing reading, identified by id.
 
     :param reading_id: id (primary key) of Reading to update
-    :param reading_data: new data for the reading.
+    :param update_data: new data for the reading, as a schema instance.
     :raises ValueError: if no persisted Reading with the given `reading_id`
     :raises IntegrityError: if uniqueness constraint(s) violated
     :raises ValueError: if any required values are invalid
@@ -73,19 +72,19 @@ async def update(session: AsyncSession,
     reading = await base_dao.get_by_id(models.Reading, session, reading_id)
     if not reading:
         raise ValueError(f"Unknown reading id {reading_id}")
-    data_source_id = reading_data.data_source_id
+    data_source_id = update_data.data_source_id
     if not data_source_id:
-        raise ValueError(f"Missing data source id in update data {reading_data}")
+        raise ValueError(f"Missing data source id in update data {update_data}")
     ds = await base_dao.get_by_id(models.DataSource, session, data_source_id)
     if not ds:
         raise ValueError(f"No data source for id {data_source_id}")
-    verify_values(reading_data.values, ds)
+    verify_values(update_data.values, ds)
     # General way to get the attributes in an instance of a class:
     #   vars(instance_ref)
     # Pydantic method for schemas:
     #   schema_instance.model_dump(exclude_unset=True)
     # Both return a dict
-    for (key, value) in reading_data.model_dump(exclude_unset=True).items():
+    for (key, value) in update_data.model_dump(exclude_unset=True).items():
         # update the attribute unless None
         if value:
             setattr(reading, key, value)
@@ -93,7 +92,7 @@ async def update(session: AsyncSession,
             logger.warning("update: not updating {key}={value} from {reading_data}")
     await session.commit()
     await session.refresh(reading)
-    logger.info(f"Updated Reading id={reading.id} fields: {vars(reading_data)}")
+    logger.info(f"Updated Reading id={reading.id} fields: {vars(update_data)}")
     return reading
 
 
@@ -112,5 +111,9 @@ def verify_values(values: dict[str, Any], ds: models.DataSource) -> bool:
     """
     for key in values.keys():
         if key not in ds.components():
-            raise ValueError(f'Reading data: "{key}" is not a component of DataSource {ds.id}')
+            raise ValueError(f'Reading data for "{key}" is not a component of DataSource {ds.id}')
+    # Conversely, all components of DataSource must be present
+    for key in ds.components():
+        if key not in values:
+            raise ValueError(f"Reading data missing required data value for {key}")
     return True

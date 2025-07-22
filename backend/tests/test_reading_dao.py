@@ -8,8 +8,9 @@ import pytest, pytest_asyncio
 from app import models, schemas
 from app.data_access import reading_dao as dao
 from .utils import as_utc_time
-from .fixtures import db, session
+from .fixtures import db, session, ds1, ds2, user1, user2
 
+# Ignore F811 Parameter name shadows import
 # flake8: noqa: E251, F811
 
 logger = logging.getLogger(__name__)
@@ -18,53 +19,6 @@ logger = logging.getLogger(__name__)
 #    if report.when == "call":
 #        logger.info(f"Test function: {report.nodeid} - {report.outcome}")
 
-@pytest_asyncio.fixture()
-async def user1(session) -> models.User:
-    """Fixture to inject a persisted User model"""
-    user = models.User(username="User 1", email="user1@mydomain.com")
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
-
-@pytest_asyncio.fixture()
-async def user2(session) -> models.User:
-    """Fixture to inject a *different* persisted User model"""
-    user = models.User(username="User 2", email="user2@mydomain.com")
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
-
-
-@pytest_asyncio.fixture()
-async def ds1(session, user1: models.User) -> models.DataSource:
-    """A DataSource owned by user1."""
-    ds = models.DataSource(
-        name="Data Source 1",
-        description="A data source with 1 component",
-        data={"Energy": "kWh"},
-        owner_id=user1.id
-    )
-    session.add(ds)
-    await session.commit()
-    await session.refresh(ds)
-    return ds
-
-
-@pytest_asyncio.fixture()
-async def ds2(session, user2: models.User) -> models.DataSource:
-    """A DataSource owned by user2 with 2 data components."""
-    ds = models.DataSource(
-        name="Data Source 2",
-        description="A data source with 2 component",
-        data={"first": "unit1", "second": "unit2"},
-        owner_id=user2.id
-    )
-    session.add(ds)
-    await session.commit()
-    await session.refresh(ds)
-    return ds
 
 async def create_readings(howmany: int, ds: models.DataSource, value=None) -> list[int]:
     """Create some readings and persist them.
@@ -118,17 +72,16 @@ async def test_create_reading(session, ds1: models.DataSource, user1: models.Use
 
 
 @pytest.mark.asyncio
-async def test_cannot_create_reading_with_wrong_components(
-    session, ds1: models.DataSource, user1: models.User):
-    """Cannot create and persist a DataSource with a given owner (user1)."""
-    value_names = ds1.components()[0]
+async def test_cannot_create_reading_with_missing_data_values(
+            session, ds2: models.DataSource, user2: models.User):
+    """Cannot create and persist a reading missing some value names declared by DataSource."""
+    value_names = ds2.components()
+    # Delete one
+    del value_names[-1]
     values = {name: 1.0 for name in value_names}
-    # Bogus reading data
-    bad_name = "NOT_" + value_names[0]
-    values[bad_name] = 0.0
     # Create a Reading schema with required fields
-    data = schemas.ReadingCreate(data_source_id=ds1.id, 
-                                 created_by_id=user1.id,
+    data = schemas.ReadingCreate(data_source_id=ds2.id, 
+                                 created_by_id=user2.id,
                                  values=values
                                  )
     with pytest.raises(ValueError):
@@ -137,7 +90,50 @@ async def test_cannot_create_reading_with_wrong_components(
 
 
 @pytest.mark.asyncio
-async def test_get_reading_by_id(session, ds1):
+async def test_cannot_create_reading_with_wrong_components(
+            session, ds2: models.DataSource, user2: models.User):
+    """Cannot create and persist a reading with value names not declared by DataSource."""
+    value_names = ds2.components()[0]
+    values = {name: 1.0 for name in value_names}
+    # Bogus reading data
+    bad_name = "NOT_" + value_names[0]
+    values[bad_name] = 0.0
+    # Create a Reading schema with required fields
+    data = schemas.ReadingCreate(data_source_id=ds2.id, 
+                                 created_by_id=user2.id,
+                                 values=values
+                                 )
+    with pytest.raises(ValueError):
+        reading = await dao.create(session, data)
+        assert reading is None
+
+
+@pytest.mark.skip(reason="Validation is done by Pydantic and part of application layer")
+@pytest.mark.asyncio
+async def test_cannot_create_reading_with_missing_data(
+            session, ds1: models.DataSource, user1: models.User):
+    """Cannot create and persist a reading without measurements or creator."""
+    value_names = ds1.components()[0]
+    values = {name: 1.0 for name in value_names}
+    # omit values
+    with pytest.raises(ValidationError):
+        data = schemas.ReadingCreate(data_source_id=ds1.id, 
+                                     created_by_id=user1.id
+                                     )
+    with pytest.raises(ValidationError):
+        reading = await dao.create(session, data)
+        assert reading is None
+    # Omit creator
+    data = schemas.ReadingCreate(data_source_id=ds1.id, 
+                                 values=values
+                                 )
+    with pytest.raises(ValidationError):
+        reading = await dao.create(session, data)
+        assert reading is None
+
+
+@pytest.mark.asyncio
+async def test_get_reading_by_id(session, ds1: models.DataSource):
     """Can retrieve a reading by id."""
     ids = await create_readings(5, ds1)
     # fetch a particular one
@@ -148,7 +144,7 @@ async def test_get_reading_by_id(session, ds1):
 
 
 @pytest.mark.asyncio
-async def test_get_reading_by_id_not_found(session, ds1):
+async def test_get_reading_by_id_not_found(session, ds1: models.DataSource):
     """If a reading id is not found the DAO returns None."""
     result = await dao.get(session, 99999)
     assert result is None
@@ -158,7 +154,7 @@ async def test_get_reading_by_id_not_found(session, ds1):
 
 
 @pytest.mark.asyncio
-async def test_get_readings_by_source(session, ds1, ds2):
+async def test_get_readings_by_source(session, ds1: models.DataSource, ds2: models.DataSource):
     """Can get all readings for a given data source."""
     readings1 = await create_readings(10, ds1)
     readings2 = await create_readings(20, ds2, value=5)
@@ -174,7 +170,7 @@ async def test_get_readings_by_source(session, ds1, ds2):
 
 
 @pytest.mark.asyncio
-async def test_get_for_data_source_with_none(session, ds1, ds2):
+async def test_get_for_data_source_with_none(session, ds1: models.DataSource, ds2: models.DataSource):
     """If no readings for a data source, the dao should return an empty list."""
     await create_readings(10, ds1)
     result = await dao.find(session, data_source_id=ds2.id)
@@ -183,7 +179,7 @@ async def test_get_for_data_source_with_none(session, ds1, ds2):
 
 
 @pytest.mark.asyncio
-async def test_get_readings_by_timestamp(session, ds1, ds2):
+async def test_get_readings_by_timestamp(session, ds1: models.DataSource, ds2: models.DataSource):
     """Can get all readings created within a given range of time."""
     await create_readings(10, ds1)
     await create_readings(20, ds2, value=5)
@@ -205,7 +201,7 @@ async def test_get_readings_by_timestamp(session, ds1, ds2):
 
 
 @pytest.mark.asyncio
-async def test_update_reading(session, ds2, user1):
+async def test_update_reading(session, ds2: models.DataSource, user1: models.User):
     """Update an existing reading replaces only the fields specified in update data."""
     ids = await create_readings(5, ds2, value=20)
     # Choose a reading to update
@@ -232,7 +228,8 @@ async def test_update_reading(session, ds2, user1):
 
 
 @pytest.mark.asyncio
-async def test_update_reading_with_invalid_measurement(session, ds2, user1):
+async def test_update_reading_with_invalid_measurement(session, 
+                                                       ds2: models.DataSource, user1: models.User):
     """Update should raise exception if any value names are not value names of the DataSource."""
     ids = await create_readings(5, ds2, value=20)
     # Choose a reading to update
@@ -248,7 +245,7 @@ async def test_update_reading_with_invalid_measurement(session, ds2, user1):
 
 
 @pytest.mark.asyncio
-async def test_update_nonexistent_reading(session, ds1):
+async def test_update_nonexistent_reading(session, ds1: models.DataSource):
     """Should raise ValueError if reading does not exist."""
     reading_data = schemas.ReadingCreate(data_source_id=ds1.id, 
                                          values={name: 0 for name in ds1.components()}
@@ -273,9 +270,8 @@ async def test_delete_reading(session, ds1):
 
 
 @pytest.mark.asyncio
-async def test_delete_nonexistent_reading(session, ds1):
+async def test_delete_nonexistent_reading(session, ds1: models.DataSource):
     """Deleting a reading with non-existing id returns None."""
     await create_readings(20, ds1)   # lets not make it too easy
     deleted = await dao.delete_reading(session, 9999)
     assert deleted is None
-

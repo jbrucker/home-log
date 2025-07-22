@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi import status
+import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import models, schemas
@@ -22,11 +23,13 @@ async def create_reading(source_id: int,
     # Data source must exist and belong to current user
     ds: models.DataSource = await data_source_dao.get(session, source_id)
     if not ds:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"No data source with id {source_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"No data source with id {source_id}")
     if not ds.owner_id == current_user.id:
+        # User is authenticated but does not have authority to create readings for this source
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not your data source")
     # Verify that keys in data match keys in data source
     if any(key not in ds.data for key in reading_data.values):
+        # FastAPI returns 422 Unprocessable Entity if schema validation fails
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid data name in reading data")
     # Add other information from the request
     # created_by_id is Optional for reading_data - make it explicit now
@@ -51,18 +54,18 @@ async def get_reading(source_id: int,
                       current_user: models.User = Depends(oauth2.get_current_user)
                       ) -> schemas.Reading:
     """Get one reading from a data source, identified by the reading id."""
-    reading = reading_dao.find(session, id=reading_id, data_source_id=source_id)
-    ds: models.DataSource = data_source_dao.get(session, source_id)
+    ds: models.DataSource = await data_source_dao.get(session, source_id)
     if not ds:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"No data source with id {source_id}")
     if not ds.owner_id == current_user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not your data source")
-    
-    if reading is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail=f"Reading id {reading_id} not found")
     # Ensure this reading belongs to this data source
-    return reading
+    readings = await reading_dao.find(session, id=reading_id, data_source_id=source_id)
+    if not readings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Reading id {reading_id} of source {source_id} not found")
+    # should be only one match
+    return readings[0]
 
 
 @router.get("/", response_model=list[schemas.ReadingData])
@@ -76,21 +79,43 @@ async def get_readings(source_id: int,
     """Get multiple data source readings."""
     # TODO only allow GET readings for DataSource owned by current_user
     filters = {}
-    if limit and limit > 0: filters['limit'] = limit
+    filters['limit'] = limit
     if offset and offset >= 0: filters['offset'] = offset
     filters['data_source_id'] = source_id
     readings = await reading_dao.find(session, **filters)
     return readings
 
 
-@router.put("/{reading_id}", response_model=schemas.ReadingCreate)
-async def update_reading(source_id: int, reading_id: int, reading: schemas.ReadingCreate):
+@router.put("/{reading_id}", response_model=schemas.Reading)
+async def update_reading(source_id: int,
+                         reading_id: int,
+                         reading_data: schemas.ReadingData,
+                         session: AsyncSession = Depends(db.get_session),
+                         current_user: models.User = Depends(oauth2.get_current_user)
+                         ) -> schemas.Reading:
     """Update a reading from a data source."""
-    pass
+    # Get the reading to update
+    reading: models.Reading = await reading_dao.get(session, reading_id)
+    # Must belong to this data source and current user
+    if not reading or reading.data_source_id != source_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    if reading.created_by_id and reading.created_by_id != current_user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Reading not owned by current user")
+    try:
+        # Populate a ReadingCreate with data source id for the DAO
+        update_data = schemas.ReadingCreate(**reading_data.model_dump())
+        update_data.data_source_id = reading.data_source_id
+        # TODO If no created_by_id (such as deleted the user) then revert to data source creator?
+        update_data.created_by_id = reading.created_by_id
+        updated = await reading_dao.update(session, reading_id=reading_id, update_data=update_data)
+        return updated
+    except sqlalchemy.exc.IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Data integrity error")
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
 
 @router.delete("/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_reading(source_id: int, reading_id: int):
     """Delete a reading from a data source."""
     raise HTTPException(status.HTTP_404_NOT_FOUND)
-    pass

@@ -52,8 +52,9 @@ async def session():
     finally:
         await session.close()
 
+
 @pytest_asyncio.fixture()
-async def auth_user(session):
+async def auth_user(session) -> models.User:
     """Create a user for use in other tests."""
     user = models.User(username="admin", email=AUTH_USER_EMAIL)
     session.add(user)
@@ -78,13 +79,6 @@ async def async_client():
         yield client
 
 
-@pytest.fixture()
-def client():
-    """Test fixture for calls to FastAPI route endpoints."""
-    #main.app.dependency_overrides[get_session] = db.get_session
-    yield TestClient(main.app)
-
-
 @pytest_asyncio.fixture()
 async def alexa(session):
     """Test fixture for a user entity named Alexa."""
@@ -101,3 +95,58 @@ async def sally(session):
     user = await user_dao.create(session, new_user)
     assert user.id > 0, "Persisted user should have id > 0"
     return user
+
+
+@pytest_asyncio.fixture()
+async def user1(session) -> models.User:
+    """Fixture to inject a User model that is owner of DataSource 1 (ds1)."""
+    user = models.User(username="User 1", email="user1@mydomain.com")
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+@pytest_asyncio.fixture()
+async def user2(session) -> models.User:
+    """Fixture to inject a User model that is owner of DataSource 2 (ds2)."""
+    user = models.User(username="User 2", email="user2@mydomain.com")
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+@pytest_asyncio.fixture()
+async def ds1(session, user1: models.User) -> models.DataSource:
+    """A DataSource owned by user1."""
+    ds = models.DataSource(
+        name="Data Source 1",
+        description="A data source with 1 component",
+        data={"Energy": "kWh"},
+        owner_id=user1.id
+    )
+    session.add(ds)
+    await session.commit()
+    await session.refresh(ds)
+    return ds
+
+
+@pytest_asyncio.fixture()
+async def ds2(session, user2: models.User) -> models.DataSource:
+    """A DataSource owned by user2 with 2 data components."""
+    ds = models.DataSource(
+        name="Data Source 2",
+        description="A data source with 2 component",
+        data={"first": "unit1", "second": "unit2"},
+        owner_id=user2.id
+    )
+    session.add(ds)
+    await session.commit()
+    await session.refresh(ds)
+    return ds
+
+
+@pytest.fixture()
+def client():
+    """Test fixture for calls to FastAPI route endpoints."""
+    # main.app.dependency_overrides[get_session] = db.get_session
+    yield TestClient(main.app)

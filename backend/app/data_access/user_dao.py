@@ -85,7 +85,8 @@ async def find(session: AsyncSession, *conditions, **filters) -> list[models.Use
     return await base_dao.find_by(models.User, session, *conditions, **filters)
 
 
-async def update(session: AsyncSession, user_id: int, 
+async def update(session: AsyncSession,
+                 user_id: int,
                  user_data: schemas.UserCreate) -> models.User | None:
     """Update the data for an existing user, identified by `user_id`.
 
@@ -112,7 +113,7 @@ async def update(session: AsyncSession, user_id: int,
     return user
 
 
-async def get_user_password(session: AsyncSession, 
+async def get_user_password(session: AsyncSession,
                             user: models.User | int
                             ) -> models.UserPassword | None:
     """Get a user's related UserPassword instance, which may be None.

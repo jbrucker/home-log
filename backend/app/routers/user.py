@@ -57,9 +57,10 @@ async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)
 
 
 @router.get("/users")
-async def get_users(limit: int = Query(20, ge=1, le=100),
+async def get_users(limit: int = Query(100, ge=1, le=100),
                     offset: int = Query(0, ge=0),
-                    session: AsyncSession = Depends(db.get_session)) -> list[schemas.User]:
+                    session: AsyncSession = Depends(db.get_session),
+                    current_user = Depends(oauth2.get_current_user)) -> list[schemas.User]:
     """Get multiple users.  Limit the number of returned values using `limit=n` query parameter.
     
     :param offset: number of users (ordered by id) to skip before first result returned.

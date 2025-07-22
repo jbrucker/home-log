@@ -6,7 +6,7 @@ import pytest, pytest_asyncio
 from app import models, schemas
 from app.data_access import data_source_dao as dao
 from .utils import as_utc_time
-from .fixtures import db, session
+from .fixtures import db, session, user1, user2
 
 # flake8: noqa: E251, F811
 
@@ -16,23 +16,6 @@ logger = logging.getLogger(__name__)
 #    if report.when == "call":
 #        logger.info(f"Test function: {report.nodeid} - {report.outcome}")
 
-@pytest_asyncio.fixture()
-async def user1(session) -> models.User:
-    """Fixture to inject a persisted User model"""
-    user = models.User(username="User 1", email="user1@mydomain.com")
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
-
-@pytest_asyncio.fixture()
-async def user2(session) -> models.User:
-    """Fixture to inject a *different* persisted User model"""
-    user = models.User(username="User 2", email="user2@mydomain.com")
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
 
 @pytest_asyncio.fixture()
 async def ds_data() -> schemas.DataSourceCreate:
@@ -71,7 +54,7 @@ async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
 
 
 @pytest.mark.asyncio
-async def test_create_data_source(session, ds_data, user1):
+async def test_create_data_source(session, ds_data, user1: models.User):
     """Can create and persist a DataSource with a given owner (user1)."""
     # Create a DataSourceCreate schema with required fields
     ds_data.owner_id = user1.id
@@ -91,7 +74,7 @@ async def test_create_data_source(session, ds_data, user1):
 
 
 @pytest.mark.asyncio
-async def test_get_data_source_by_id(session, ds_data, user1):
+async def test_get_data_source_by_id(session, ds_data, user1: models.User):
     """Can retrieve a data source by id."""
     ids = await create_data_sources(5, user1)
     ds_data.owner_id = user1.id
@@ -106,7 +89,7 @@ async def test_get_data_source_by_id(session, ds_data, user1):
     assert result.name == ds_data.name
 
 @pytest.mark.asyncio
-async def test_get_data_source_by_id_includes_owner(session, ds_data, user1):
+async def test_get_data_source_by_id_includes_owner(session, ds_data, user1: models.User):
     """When you get a data source it includes the owner reference as a User model."""
     ds_data.owner_id = user1.id
     # Call the DAO to create the data source
@@ -126,7 +109,7 @@ async def test_get_data_source_by_id_not_found(session, user1):
     assert result is None
 
 @pytest.mark.asyncio
-async def test_get_data_source_by_owner(session, user1, user2):
+async def test_get_data_source_by_owner(session, user1: models.User, user2: models.User):
     """Can get all data sources for a given owner."""
     ds1 = await dao.create(
         session,
@@ -160,7 +143,7 @@ async def test_get_data_source_by_owner(session, user1, user2):
     assert user2_sources[0].owner_id == user2.id
 
 @pytest.mark.asyncio
-async def test_get_data_source_for_owner_with_none(session, user1, user2):
+async def test_get_data_source_for_owner_with_none(session, user1: models.User, user2: models.User):
     """If a user does not own any data sources, it returns None."""
     ds1 = await dao.create(
         session,
@@ -184,7 +167,7 @@ async def test_get_data_source_for_owner_with_none(session, user1, user2):
 
 
 @pytest.mark.asyncio
-async def test_get_data_sources_by_date(session, user1, user2):
+async def test_get_data_sources_by_date(session, user1: models.User, user2: models.User):
     """Can use an expression to select datasources by owner and date range."""
     user1_ds_ids = await create_data_sources(20, user1)
     user2_ds_ids = await create_data_sources(20, user2)
@@ -229,7 +212,7 @@ async def test_get_data_sources_by_date(session, user1, user2):
 
 
 @pytest.mark.asyncio
-async def test_update_data_source(session, user1):
+async def test_update_data_source(session, user1: models.User):
     ds = await dao.create(
         session,
         schemas.DataSourceCreate(
@@ -265,7 +248,7 @@ async def test_update_nonexistent_data_source(session):
         await dao.update(session, 99999, update_data)
 
 @pytest.mark.asyncio
-async def test_delete_data_source(session, user1):
+async def test_delete_data_source(session, user1: models.User):
     """Can delete a data source by id"""
     await create_data_sources(5, user1)  # for obfuscation
     ds = await dao.create(
