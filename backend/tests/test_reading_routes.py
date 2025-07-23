@@ -210,9 +210,59 @@ def test_update_not_own_reading(client: TestClient,
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
+def test_delete_reading_success(client: TestClient, user1: models.User, ds1: models.DataSource):
+    """An authorized user can delete a reading that he/she created."""
+    # First, create a reading
+    payload = {
+        "values": make_reading_values(ds1.components()),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    response = client.post(reading_url(ds1.id), json=payload, headers=auth_header(user1))
+    assert response.status_code == status.HTTP_201_CREATED
+    url = response.headers.get("location")
+    # Now delete the reading
+    delete_response = client.delete(url, headers=auth_header(user1))
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    # Confirm it is gone
+    get_response = client.get(url, headers=auth_header(user1))
+    assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_delete_reading_unauthorized(client: TestClient, user1: models.User, ds1: models.DataSource):
+    """An unauthenticated request cannot delete a reading."""
+    payload = {
+        "values": make_reading_values(ds1.components()),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    response = client.post(reading_url(ds1.id), json=payload, headers=auth_header(user1))
+    assert response.status_code == status.HTTP_201_CREATED
+    resource_url = response.headers.get("location")
+    # Delete without an auth header
+    delete_response = client.delete(resource_url)
+    assert delete_response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_delete_reading_when_not_owner(client: TestClient,
+                                       user1: models.User,
+                                       user2: models.User,
+                                       ds1: models.DataSource):
+    """A user cannot delete a reading if he is neither creator nor owner of the data source."""
+    # assumes that user1 owns ds1
+    assert user1.id == ds1.owner_id
+    payload = {
+        "values": make_reading_values(ds1.components()),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    response = client.post(reading_url(ds1.id), json=payload, headers=auth_header(user1))
+    assert response.status_code == status.HTTP_201_CREATED
+    resource_url = response.headers.get("location")
+    # Delete as a different user
+    delete_response = client.delete(resource_url, headers=auth_header(user2))
+    # should be 403: user2 is authorized but does not have permission to do this
+    assert delete_response.status_code == status.HTTP_403_FORBIDDEN
+
+
 def make_reading_values(names: list[str]) -> dict[str, Number]:
     """Create reading values for a given set of keys."""
     values = iter(range(1,1000000))
     return { name: next(values) for name in names }
-
-

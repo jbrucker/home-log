@@ -105,9 +105,10 @@ async def delete_reading(session: AsyncSession, reading_id: int) -> models.Readi
 
 
 def verify_values(values: dict[str, Any], ds: models.DataSource) -> bool:
-    """Verify that all keys in the `values` dict are components in the datasource data.
+    """Verify that all keys in the `values` dict match components in the datasource data.
 
     :raises ValueError: if any key in `values` is not a component of DataSource data
+                        or any components are missing from values.
     """
     for key in values.keys():
         if key not in ds.components():

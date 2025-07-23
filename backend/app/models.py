@@ -176,8 +176,8 @@ class Reading(Base):
 
     def __str__(self) -> str:
         """Return a string representation of a reading."""
-        time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
-        return f'id={self.id} source={self.data_source_id} at {time_str} {self.values}'
+        # time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
+        return f'id={self.id} source={self.data_source_id} {self.values}'
 
 
 # For testing. Normally you should do this in app/core/database.py
