@@ -118,7 +118,7 @@ async def get_user_password(session: AsyncSession,
                             ) -> models.UserPassword | None:
     """Get a user's related UserPassword instance, which may be None.
 
-    If you only want the user's hashed password, use `get_password` instead. 
+    If you only want the user's hashed password, use `get_password` instead.
     :param user: a User model instance or the id (int) of user
     :returns: UserPassword of the requested user
     :raises ValueError: If no User with the given user_id value
@@ -129,9 +129,7 @@ async def get_user_password(session: AsyncSession,
     return user_password.scalar_one_or_none()
 
 
-async def get_password(session: AsyncSession,
-                       user: models.User | int
-                       ) -> str | None:
+async def get_password(session: AsyncSession, user: models.User | int) -> str | None:
     """Get a user's hashed password or None if no password.
 
     :param user: an instance of models.User or a user id value

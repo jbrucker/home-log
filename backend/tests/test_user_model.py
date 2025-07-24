@@ -1,11 +1,15 @@
 """Unit tests of persistenc operations for models.User."""
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 import pytest, pytest_asyncio
 from sqlalchemy.exc import IntegrityError
 from app.models import User
 from .utils import as_utc_time, is_timezone_aware
+# Import of session fixture is necessary
 from .fixtures import db, session
+
+# Ignore F811 Parameter name shadows import
+# flake8: noqa: F811
 
 
 @pytest.fixture
@@ -43,7 +47,7 @@ async def test_create_and_update_dates(session, user):
     """created_at and updated_at are automatically set and updated."""
     assert isinstance(user.created_at, datetime), "user.created_at should be datetime but is {type(user.created_at).__name__}"
     assert isinstance(user.updated_at, datetime), "user.created_at should be datetime but is {type(user.updated_at).__name__}"
-    # should be nearly the same
+    # initially both dates should be nearly the same
     delta = user.updated_at - user.updated_at
     assert abs(delta.microseconds <= 500000)  # allow for imprecise timestamps
     # update some attribute and retest create & update times
@@ -53,7 +57,7 @@ async def test_create_and_update_dates(session, user):
     await session.commit()
     await session.refresh(user)
     new_update = user.updated_at
-    assert as_utc_time(new_update) > as_utc_time(last_update), "after update, user.updated_at not modified"
+    assert as_utc_time(new_update) > as_utc_time(last_update), "user.updated_at not modified by update"
 
 
 @pytest.mark.skipif(str(db.engine.url).startswith("sqlite"),

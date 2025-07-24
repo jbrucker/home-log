@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 import random
+from pydantic import ValidationError
 import pytest, pytest_asyncio
 from app import models, schemas
 from app.data_access import reading_dao as dao
@@ -92,7 +93,7 @@ async def test_cannot_create_reading_with_missing_data_values(
 @pytest.mark.asyncio
 async def test_cannot_create_reading_with_wrong_components(
             session, ds2: models.DataSource, user2: models.User):
-    """Cannot create and persist a reading with value names not declared by DataSource."""
+    """Cannot create and persist a reading with extra value names not declared by DataSource."""
     value_names = ds2.components()[0]
     values = {name: 1.0 for name in value_names}
     # Bogus reading data
@@ -108,26 +109,18 @@ async def test_cannot_create_reading_with_wrong_components(
         assert reading is None
 
 
-@pytest.mark.skip(reason="Validation is done by Pydantic and part of application layer")
 @pytest.mark.asyncio
-async def test_cannot_create_reading_with_missing_data(
+async def test_cannot_create_reading_for_nonexistant_source(
             session, ds1: models.DataSource, user1: models.User):
-    """Cannot create and persist a reading without measurements or creator."""
-    value_names = ds1.components()[0]
-    values = {name: 1.0 for name in value_names}
-    # omit values
-    with pytest.raises(ValidationError):
-        data = schemas.ReadingCreate(data_source_id=ds1.id, 
-                                     created_by_id=user1.id
-                                     )
-    with pytest.raises(ValidationError):
-        reading = await dao.create(session, data)
-        assert reading is None
-    # Omit creator
-    data = schemas.ReadingCreate(data_source_id=ds1.id, 
-                                 values=values
+    """Cannot create and persist a reading for a source that doesn't exist."""
+    ds_id = ds1.id + 9
+    value_names = ds1.components()
+    # Create a Reading schema with required fields
+    data = schemas.ReadingCreate(data_source_id=ds_id,  # should not exist 
+                                 created_by_id=user1.id,
+                                 values={name: 0.5 for name in value_names}
                                  )
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         reading = await dao.create(session, data)
         assert reading is None
 

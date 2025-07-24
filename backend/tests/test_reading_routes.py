@@ -1,5 +1,6 @@
 """Tests of router endpoints for readings."""
 
+import time
 from datetime import datetime, timezone
 from numbers import Number
 from urllib.parse import urlparse
@@ -66,6 +67,47 @@ def test_create_reading_returns_location(client: TestClient, user1: models.User,
     # First 18 chars of timestamp are "yyyy-mm-ddTHH:MM:SS". 
     # Remainder may differ due to timezone aware/unaware database semantics.
     assert reading_data["timestamp"][:18] == payload["timestamp"][:18]
+
+
+def test_create_reading_with_incomplete_timestamp(client: TestClient, 
+                                    user1: models.User, ds1: models.DataSource):
+    """Create a reading with a timestamp containing only a date or date+time but no timezone."""
+    reading_data = {
+        "values": make_reading_values(ds1.components()),
+        "timestamp": "2025-01-31"
+    }
+    response = client.post(
+        reading_url(ds1.id),
+        json=reading_data,
+        headers=auth_header(user1)
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    url = response.headers.get("location")
+    # Get the reading from database
+    get_response = client.get(url, headers=auth_header(user1))
+    response_data = get_response.json()
+    assert response_data["data_source_id"] == ds1.id
+    assert reading_data["timestamp"] in response_data["timestamp"],\
+          f'timestamp should contain {reading_data["timestamp"]}'
+
+    # A timestamp with date and time, but no timezone or milliseconds
+    reading_data["timestamp"] = "2025-01-31T12:45:00"  # no millisec or timezone
+    response = client.post(
+        reading_url(ds1.id),
+        json=reading_data,
+        headers=auth_header(user1)
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    url = response.headers.get("location")
+    # Get the reading from database
+    time.sleep(1)
+    get_response = client.get(url, headers=auth_header(user1))
+    assert get_response.status_code == status.HTTP_200_OK
+    response_data = get_response.json()
+    assert "timestamp" in response_data, "Response body missing 'timestamp'"
+    assert reading_data["timestamp"] in response_data["timestamp"],\
+        f'Persisted timestamp {response_data["timestamp"]} does not match {reading_data["timestamp"]}'
+
 
 
 def test_create_reading_missing_field(client: TestClient, user1: models.User, ds1: models.DataSource):

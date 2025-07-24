@@ -97,7 +97,7 @@ class ReadingData(BaseModel):
     values: dict[str, Any]
     # Timestamp should be specified
     timestamp: Optional[datetime] = None
-    created_by_id: Optional[int] = None
+    # Client cannot specify created_by_id. It is determined by authorized user.
 
 
 class ReadingCreate(ReadingData):
