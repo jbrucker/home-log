@@ -63,7 +63,7 @@ async def get_reading(source_id: int,
     return reading
 
 
-@router.get("/", response_model=list[schemas.ReadingData])
+@router.get("/", response_model=list[schemas.ReadingDataOut])
 async def get_readings(source_id: int,
                        start: str = Query(None),
                        end: str = Query(None),

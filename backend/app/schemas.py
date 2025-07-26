@@ -88,7 +88,7 @@ class DataSource(DataSourceCreate):
 
 class ReadingData(BaseModel):
     """Schema for a required Reading data for reading from a specific DataSource.
-    
+
     This omits the data_source_id and created_by_id, since:
     - in a request the data source id is a path param, created_by_id is the current user's id
     - in a response, data_source_id is redundant (omit to save space)
@@ -98,6 +98,16 @@ class ReadingData(BaseModel):
     # Timestamp should be specified
     timestamp: Optional[datetime] = None
     # Client cannot specify created_by_id. It is determined by authorized user.
+
+
+class ReadingDataOut(BaseModel):
+    """Reading data to return as response to a GET request.
+
+    This includes the values, timestamp, and reading id.
+    """
+    id: int
+    values: dict[str, Any]
+    timestamp: datetime
 
 
 class ReadingCreate(ReadingData):
