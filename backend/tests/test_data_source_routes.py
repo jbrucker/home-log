@@ -30,7 +30,7 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
     """
     data = {
         "name": "Test Source",
-        "data": {"Energy": "btu"}
+        "metrics": {"Energy": "btu"}
     }
     create_time = datetime.now(timezone.utc)
     result = client.post("/sources/",
@@ -40,8 +40,8 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
     new_source = schemas.DataSource(**result.json())
     assert new_source.id > 0
     assert new_source.name == data["name"]
-    assert new_source.data == data["data"]
-    assert new_source.data["Energy"] == "btu"
+    assert new_source.metrics == data["metrics"]
+    assert new_source.metrics["Energy"] == "btu"
     assert new_source.owner_id == alexa.id
     assert isinstance(new_source.created_at, datetime)
     assert new_source.created_at.date() >= create_time.date()
@@ -51,7 +51,7 @@ def test_unauthenticated_create_data_source(client: TestClient):
     """Cannot create a data source without an authenticated user."""
     data = {
         "name": "Another Test Source",
-        "data": {"Temperature": "deg-C"}
+        "metrics": {"Temperature": "deg-C"}
     }
     result = client.post("/sources/", json=data)
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
@@ -77,7 +77,7 @@ def test_create_data_source_returns_location(client: TestClient, alexa: models.U
     """Creating a new resource should return a Location header with URL of the created resource."""
     payload = {
         "name": "Test Source",
-        "data": {"High": "degree", "Low": "degree"}
+        "metrics": {"High": "degree", "Low": "degree"}
     }
     result = client.post("/sources/",
                            headers=auth_header(alexa),
@@ -97,7 +97,7 @@ def test_update_data_source_success(alexa: models.User, client: TestClient):
     """Authenticated user can update their own data source."""
     # Create a data source owned by Alexa
     token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
-    data = {"name": "Original Name", "data": {"weight": "lb"}, "description": "Original description"}
+    data = {"name": "Original Name", "metrics": {"weight": "lb"}, "description": "Original description"}
     response = client.post(
         "/sources/",
         headers=auth_header(alexa),
@@ -110,7 +110,7 @@ def test_update_data_source_success(alexa: models.User, client: TestClient):
     # Update the data source
     update_data = {
         "name": "Updated Name",
-        "data": {"weight": "kg"},
+        "metrics": {"weight": "kg"},
         "description": "Updated description"
     }
     update_resp = client.put(
@@ -122,7 +122,7 @@ def test_update_data_source_success(alexa: models.User, client: TestClient):
     updated = update_resp.json()
     assert updated["id"] == source_id
     assert updated["name"] == update_data["name"]
-    assert updated["data"] == update_data["data"]
+    assert updated["metrics"] == update_data["metrics"]
     assert updated["description"] == update_data["description"]
     assert updated["owner_id"] == alexa.id
 
@@ -138,7 +138,7 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
     # Update only some fields
     update_data = {
                     "name": "Updated Name",
-                    "data": {"sys": "mmHg", "dia": "mmHg"}
+                    "metrics": {"sys": "mmHg", "dia": "mmHg"}
                   }
     response = client.put(
                     f"/sources/{source_id}",
@@ -149,8 +149,8 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
     updated = response.json()
     updated_ds = schemas.DataSource(**response.json())
     assert updated_ds.name == update_data["name"]
-    assert updated_ds.data == update_data["data"]
-    assert updated_ds.data["dia"] == "mmHg"
+    assert updated_ds.metrics == update_data["metrics"]
+    assert updated_ds.metrics["dia"] == "mmHg"
     # still has original description
     assert updated_ds.description == orig_data["description"]
 
@@ -177,7 +177,7 @@ def test_unuathorized_update_data_source(alexa: models.User, sally, client: Test
 
 def test_update_data_source_not_found(alexa: models.User, client: TestClient):
     """Returns 404 if attempt to update a data source that does not exist."""
-    update_data = {"name": "Doesn't Matter", "data": {"Energy": "kWh"}}
+    update_data = {"name": "Doesn't Matter", "metrics": {"Energy": "kWh"}}
     response = client.put(
                     "/sources/99999",
                     headers=auth_header(alexa),

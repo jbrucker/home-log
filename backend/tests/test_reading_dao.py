@@ -133,7 +133,7 @@ async def test_get_reading_by_id(session, ds1: models.DataSource):
     result = await dao.get(session, ids[2])
     assert result is not None
     assert result.data_source_id == ds1.id
-    assert result.values.keys() == ds1.data.keys()
+    assert result.values.keys() == ds1.metrics.keys()
 
 
 @pytest.mark.asyncio

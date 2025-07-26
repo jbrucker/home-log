@@ -23,7 +23,7 @@ async def ds_data() -> schemas.DataSourceCreate:
     ds_create = schemas.DataSourceCreate(
         name="Test Source",
         description="A test data source",
-        data={"value1": "unit1"}
+        metrics={"value1": "unit1"}
         # no owner_id specified
     )
     return ds_create
@@ -66,7 +66,7 @@ async def test_create_data_source(session, ds_data, user1: models.User):
     assert ds.owner_id == user1.id
     assert ds.name == "Test Source"
     assert ds.description == "A test data source"
-    assert ds.data == {"value1": "unit1"}
+    assert ds.metrics == {"value1": "unit1"}
     # automatically assigned
     # Cludge: SQLite datetime is not timezone aware
     assert as_utc_time(ds.created_at) >= starting_time
@@ -227,14 +227,14 @@ async def test_update_data_source(session, user1: models.User):
         name="Updated Name",
         description="After update",
         # owner_id=user1.id,
-        data={"weight": "grams"}
+        metrics={"weight": "grams"}
     )
     # TODO What _should_ happen to attributes that are unspecified in the update?
     updated = await dao.update(session, ds.id, update_data)
     assert updated.id == ds_id
     assert updated.name == "Updated Name"
     assert updated.description == "After update"
-    assert updated.data["weight"] == "grams", "update did not set the unit"
+    assert updated.metrics["weight"] == "grams", "update did not set the unit"
     assert updated.owner_id == user1.id, "update changed owner_id which was unspecified in update"
 
 @pytest.mark.asyncio

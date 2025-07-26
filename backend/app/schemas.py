@@ -72,8 +72,8 @@ class DataSourceCreate(BaseModel):
     """Schema for creating a new DataSource."""
     name: str = Field(..., max_length=MAX_NAME)
     description: Optional[str] = Field(None, max_length=MAX_DESC)
-    # The default value of 'data' is a dict with key "value" and unit name (value) ""
-    data: dict[str, str] = Field(default_factory=lambda: {"value": ""})
+    # The default value is a dict with key "value" and unit name (value) ""
+    metrics: dict[str, str] = Field(default_factory=lambda: {"value": ""})
     # Need to be able to specify owner when source is created
     owner_id: Optional[int] = None
 

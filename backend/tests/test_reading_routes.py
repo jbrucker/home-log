@@ -36,12 +36,12 @@ def test_create_reading_success(client: TestClient, user1: models.User, ds1: mod
         headers=auth_header(user1)
     )
     assert response.status_code == status.HTTP_201_CREATED
-    data = response.json()
+    response_body = response.json()
     # This is a wimpy test. Is the data really persisted?
-    assert data["data_source_id"] == ds1.id
-    assert data["values"] == payload["values"]
-    assert data["created_by_id"] == user1.id
-    assert "timestamp" in data
+    assert response_body["data_source_id"] == ds1.id
+    assert response_body["values"] == payload["values"]
+    assert response_body["created_by_id"] == user1.id
+    assert "timestamp" in response_body
 
 
 def test_create_reading_returns_location(client: TestClient, user1: models.User, ds1: models.DataSource):
@@ -189,12 +189,12 @@ def test_update_reading_success(client: TestClient, user1: models.User, ds1: mod
         headers=auth_header(user1)
     )
     assert update_response.status_code == status.HTTP_200_OK
-    data = update_response.json()
+    response_data = update_response.json()
     # Could fail if values are re-ordered on server side
-    assert data["values"] == update_payload["values"]
-    assert data["id"] == reading_id
+    assert response_data["values"] == update_payload["values"]
+    assert response_data["id"] == reading_id
     # Timestamp may be timezone unaware
-    assert data["timestamp"][:18] == update_payload["timestamp"][:18]
+    assert response_data["timestamp"][:18] == update_payload["timestamp"][:18]
 
 
 def test_update_reading_not_found(client: TestClient, user1: models.User, ds1: models.DataSource):

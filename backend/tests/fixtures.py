@@ -106,6 +106,7 @@ async def user1(session) -> models.User:
     await session.refresh(user)
     return user
 
+
 @pytest_asyncio.fixture()
 async def user2(session) -> models.User:
     """Fixture to inject a User model that is owner of DataSource 2 (ds2)."""
@@ -115,13 +116,14 @@ async def user2(session) -> models.User:
     await session.refresh(user)
     return user
 
+
 @pytest_asyncio.fixture()
 async def ds1(session, user1: models.User) -> models.DataSource:
     """A DataSource owned by user1."""
     ds = models.DataSource(
         name="Data Source 1",
         description="A data source with 1 component",
-        data={"Energy": "kWh"},
+        metrics={"Energy": "kWh"},
         owner_id=user1.id
     )
     session.add(ds)
@@ -136,7 +138,7 @@ async def ds2(session, user2: models.User) -> models.DataSource:
     ds = models.DataSource(
         name="Data Source 2",
         description="A data source with 2 component",
-        data={"first": "unit1", "second": "unit2"},
+        metrics={"first": "unit1", "second": "unit2"},
         owner_id=user2.id
     )
     session.add(ds)
