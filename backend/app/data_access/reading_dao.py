@@ -89,7 +89,7 @@ async def update(session: AsyncSession,
         if value:
             setattr(reading, key, value)
         else:
-            logger.warning(f"update: not updating {key}={value} from {reading_data}")
+            logger.warning(f"update: not updating {key}={value} from input data {update_data}")
     await session.commit()
     await session.refresh(reading)
     logger.info(f"Updated Reading id={reading.id} fields: {vars(update_data)}")

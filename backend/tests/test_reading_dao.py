@@ -94,7 +94,7 @@ async def test_cannot_create_reading_with_missing_data_values(
 async def test_cannot_create_reading_with_wrong_components(
             session, ds2: models.DataSource, user2: models.User):
     """Cannot create and persist a reading with extra value names not declared by DataSource."""
-    value_names = ds2.components()[0]
+    value_names = ds2.components()
     values = {name: 1.0 for name in value_names}
     # Bogus reading data
     bad_name = "NOT_" + value_names[0]
@@ -234,7 +234,7 @@ async def test_update_reading_with_invalid_measurement(session,
     updates = schemas.ReadingCreate(data_source_id=ds2.id, created_by_id=user1.id, values=values)
     with pytest.raises(ValueError):
         updated = await dao.update(session, reading.id, updates)
-        assert updated in None
+        assert updated is None
 
 
 @pytest.mark.asyncio
