@@ -1,4 +1,5 @@
 """Tests for the user_dao module.
+
    Requires pytest-asyncio be installed for async support.
 """
 import pytest
@@ -6,13 +7,16 @@ import sqlalchemy
 
 from app import models, schemas
 from app.data_access import user_dao
-from .fixtures import db, session
+from .fixtures import session
 from .utils import EMAIL_DOMAIN, create_users
+
+# Ignore F811 Parameter name shadows import
+# flake8: noqa: F811
 
 
 @pytest.mark.asyncio
 async def test_create_user(session):
-    """Can add a user to database using dao.create_user with UserCreate schema object"""
+    """Can add a user to database using dao.create_user with UserCreate schema object."""
     new_user = schemas.UserCreate(email="anonymous@hackers.com", username="Hacker")
     # my DAO return model objects, not schema objects
     user = await user_dao.create(session, new_user)
@@ -33,11 +37,11 @@ async def test_get_user_by_id(session):
     # model should be fully populated
     assert user.id > 0
     # get Hacker again
-    result = await user_dao.get_user(session, user.id)
+    result = await user_dao.get(session, user.id)
     assert result.email == user.email
     assert result.username == user.username
     # get non-existent user
-    result = await user_dao.get_user(session, 999999)
+    result = await user_dao.get(session, 999999)
     assert result is None
 
 @pytest.mark.asyncio
@@ -47,18 +51,18 @@ async def test_get_user_by_email(session):
     # get each user
     for user_num in range(1,6):
         email = f"user{user_num}@{EMAIL_DOMAIN}"
-        result = await user_dao.get_user_by_email(session, email=email)
+        result = await user_dao.get_by_email(session, email=email)
         assert result is not None, f"Failed to get User for email {email}"
         assert isinstance(result, models.User), f"get_user_by_email returned a {type(result).__name__}"
         assert result.email == email
     # non-existent user
-    result = await user_dao.get_user_by_email(session, "completely-bogus-user@bitnet")
+    result = await user_dao.get_by_email(session, "completely-bogus-user@bitnet")
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_email_must_be_unique(session):
-    """Cannot add 2 users with the same email"""
+    """Cannot add 2 users with the same email."""
     new_user1 = schemas.UserCreate(email="testhacker@hackers.com", username="Hacker")
     # my DAO return model objects, not schema objects
     user1 = await user_dao.create(session, new_user1)
@@ -73,6 +77,7 @@ async def test_email_must_be_unique(session):
         user2 = await user_dao.create(session, new_user2)
         assert user2 is None
 
+
 @pytest.mark.asyncio
 async def test_update_user_success(session):
     """Can update an existing user's email and username; updated_at is updated automatically."""
@@ -83,7 +88,7 @@ async def test_update_user_success(session):
 
     #async with db.get_session() as session:
     updated_data = schemas.UserCreate(email="renamed@email.com", username="NewName")
-    updated_user = await user_dao.update_user(session, user_id, updated_data)
+    updated_user = await user_dao.update(session, user_id, updated_data)
     assert updated_user is not None
     assert updated_user.id == user_id
     assert updated_user.email == "renamed@email.com"
@@ -93,14 +98,16 @@ async def test_update_user_success(session):
     # this could fail. Timestamp granularity depends on database
     assert updated_user.updated_at > user.created_at
 
+
 @pytest.mark.asyncio
 async def test_update_user_nonexistent(session):
     """Updating a non-existent user returns None."""
     #async with db.get_session() as session:
     updated_data = schemas.UserCreate(email="doesnot@exist.com", username="Nobody")
     with pytest.raises(ValueError):
-        updated_user = await user_dao.update_user(session, 99999, updated_data)
+        updated_user = await user_dao.update(session, 99999, updated_data)
         assert updated_user is None
+
 
 @pytest.mark.asyncio
 async def test_update_user_email_unique_constraint(session):
@@ -114,7 +121,7 @@ async def test_update_user_email_unique_constraint(session):
     with pytest.raises(sqlalchemy.exc.SQLAlchemyError):
         #async with db.get_session() as session:
         updated_data = schemas.UserCreate(email=user1.email, username="NewName")
-        await user_dao.update_user(session, user2.id, updated_data)
+        await user_dao.update(session, user2.id, updated_data)
 
 
 @pytest.mark.asyncio
@@ -131,6 +138,7 @@ async def test_get_all_users(session):
     ids = [user.id for user in users]
     assert ids == sorted(ids)
 
+
 @pytest.mark.asyncio
 async def test_get_users_with_limit(session):
     """get_users should respect the limit parameter."""
@@ -142,6 +150,7 @@ async def test_get_users_with_limit(session):
     assert users[1].username == "User2"
     assert users[2].username == "User3"
     assert users[3].username == "User4"
+
 
 @pytest.mark.asyncio
 async def test_get_users_with_offset_and_limit(session):
@@ -163,11 +172,13 @@ async def test_get_users_with_offset_and_limit(session):
     assert users[3].username == "User14"
     assert users[4].username == "User15"
 
+
 @pytest.mark.asyncio
 async def test_get_users_may_be_empty(session):
     """get_users should return an empty list if there are no users."""
     users = await user_dao.get_users(session)
     assert users == []
+
 
 @pytest.mark.asyncio
 async def test_find_users_with_condition(session):
@@ -176,7 +187,7 @@ async def test_find_users_with_condition(session):
     await create_users(session, 15)
     # more users with a different domain
     await create_users(session, 20, email_domain=domain_to_find)
-    users = await user_dao.find_users(session, models.User.email.contains(domain_to_find), offset=10, limit=5)
+    users = await user_dao.find(session, models.User.email.contains(domain_to_find), offset=10, limit=5)
     assert len(users) == 5
     for user in users:
         # We created 15 users with default domain first + skip 10 matching specific domain -> min id should be 26
@@ -188,7 +199,7 @@ async def test_find_users_with_condition(session):
 async def test_find_users_with_offset_and_limit(session):
     """find_users applies limit and offset."""
     await create_users(session, 50)
-    users = await user_dao.find_users(session, offset=12, limit=7)
+    users = await user_dao.find(session, offset=12, limit=7)
     assert len(users) == 7, f"Specified limit=7 but got {len(users)} results"
     for user in users:
         assert user.id > 12, f"Specified offset=12, returned find_users returned user with id {user.id}"
@@ -207,9 +218,8 @@ async def test_delete_user(session):
     assert deleted is not None
     assert deleted.email == user_to_delete.email, "Deleted wrong user."
     # Verify user is *really* deleted
-    deleted_user = await user_dao.get_user(session, user_to_delete.id)
+    deleted_user = await user_dao.get(session, user_to_delete.id)
     assert deleted_user is None
     # Did not delete adjacent user
-    other_user = await user_dao.get_user(session, users[0].id)
+    other_user = await user_dao.get(session, users[0].id)
     assert other_user.email == users[0].email
-

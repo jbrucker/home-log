@@ -88,7 +88,8 @@ async def test_get_user_password(session):
     assert hashed_password2 == hashed_password, "user_dao.get_password() didn't return userPassword.hashed_password"
 
 
-@pytest.mark.skip("Accessing a relationship field in user model doesn't work with async Postgresql")
+@pytest.mark.skip("user.user_password is not eagerly loaded so this will raise async error"
+                  "user.user_password not required outside of models.")
 @pytest.mark.asyncio
 async def test_user_password_property(session):
     """Can get the UserPassword for a User using a relationship field defined in User model."""
@@ -97,11 +98,13 @@ async def test_user_password_property(session):
     # set a password and then get the hashed password
     plain_password = utils.make_password()
     await user_dao.set_password(session, user.id, plain_password)
-    # Important! Get the user by id to force eager loading of relationship.
-    user = await user_dao.get_user(session, user.id)
-    # user.user_password refers to the related UserPassword object
-    assert user.user_password is not None
-    assert isinstance(user.user_password, models.UserPassword), f"get_user_password return a {type(user.user_password).__name__}"
-    hashed_password = user.user_password.hashed_password
+    # Get the user by id test eager/lazy instantiation of relationship.
+    user = await user_dao.get(session, user.id)
+    # See models.User - does user_password use "lazy='joined'" ?  Probably not, for performance.
+    # user.user_password refers to related UserPassword object
+    user_password = await user.user_password
+    assert user_password is not None
+    assert isinstance(user_password, models.UserPassword), f"get_user_password return a {type(user.user_password).__name__}"
+    hashed_password = user_password.hashed_password
     assert security.verify_password(plain_password, hashed_password) is True,\
         f"Passwords don't match. Hashed = {hashed_password}"

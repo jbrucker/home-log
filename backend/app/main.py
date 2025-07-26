@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.database import db
-from app.routers import account, auth, data_source, user
+from app.routers import account, auth, data_source, reading, user
 
 
 # Initialize log format
@@ -44,3 +44,4 @@ app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(data_source.router)
+app.include_router(reading.router)

@@ -1,9 +1,9 @@
-"""Test the FastAPI routes for /user"""
+"""Test the FastAPI routes for /user."""
 from fastapi import Response, status
 
 from fastapi.testclient import TestClient
-import pytest, pytest_asyncio
-from app import schemas
+import pytest
+from app import models, schemas
 from app.data_access import user_dao
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
@@ -12,17 +12,17 @@ from .fixtures import client, auth_user, session
 from .fixtures import alexa, sally
 from .utils import auth_header, create_users
 
+# flake8: noqa: F811
+# F811 redefinition of import by parameter (fixtures)
 
 @pytest.mark.asyncio
-async def test_create_user(session, auth_user, client: TestClient):
+async def test_create_user(session, auth_user: models.User, client: TestClient):
     """An authorized user can create a new user entity."""
-    # add authentication
-
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
     result: Response = client.post("/users",
-                         headers=auth_header(token),
+                         headers=auth_header(token),  # add authentication
                          json={"username": USER_NAME, "email": USER_EMAIL}
                         )
     new_user = schemas.User(**result.json())
@@ -30,7 +30,7 @@ async def test_create_user(session, auth_user, client: TestClient):
     assert new_user.email == USER_EMAIL
     assert new_user.username == USER_NAME
     # new user is in database, too
-    user = await user_dao.get_user_by_email(session, email=USER_EMAIL)
+    user = await user_dao.get_by_email(session, email=USER_EMAIL)
     assert user is not None
     assert user.username == USER_NAME
     # cannot add another user with same email
@@ -42,8 +42,28 @@ async def test_create_user(session, auth_user, client: TestClient):
     assert result.status_code == status.HTTP_409_CONFLICT
 
 
-@pytest.mark.asyncio
-async def test_get_user(session, alexa, auth_user, client: TestClient):
+def test_create_user_returns_location(auth_user: models.User, client: TestClient):
+    """Creating a new User should return a Location header with URL of the created resource."""
+    USER_EMAIL = "harry@hackers.com"
+    USER_NAME = "Harry Hacker"
+    token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
+    result: Response = client.post("/users",
+                         headers=auth_header(token),  # add authentication
+                         json={"username": USER_NAME, "email": USER_EMAIL}
+                        )
+    assert result.status_code == status.HTTP_201_CREATED
+    # FastAPI Client returns header names in lowercase
+    location = result.headers.get("location", default=None)
+    assert location is not None, "POST a new User should return 'location' header"
+    # Get the URL.  Apparently its not necessary to strip off host part ("http://host:port")
+    get_response = client.get(location, headers=auth_header(auth_user))
+    assert get_response.status_code == status.HTTP_200_OK
+    user_data = get_response.json()
+    assert user_data["username"] == USER_NAME
+    assert user_data["email"] == USER_EMAIL
+
+
+def test_get_user(alexa: models.User, auth_user: models.User, client: TestClient):
     """Router returns a user with matching id, e.g. GET /users/1."""
     # add authentication?
     # the user to get
@@ -59,14 +79,15 @@ async def test_get_user(session, alexa, auth_user, client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_get_users_returns_all(session, auth_user, client: TestClient):
-    """Router returns all users when no limit is specified."""
-    await create_users(session, 20)
+async def test_get_users_returns_max(session, auth_user: models.User, client: TestClient):
+    """Router returns up to 100 users when no limit is specified."""
+    DEFAULT_LIMIT = 100
+    await create_users(session, 200)
     result = client.get("/users/", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
     user_data = result.json()
     assert isinstance(user_data, list)
-    assert len(user_data) == 20
+    assert len(user_data) == DEFAULT_LIMIT
 
 
 @pytest.mark.asyncio
@@ -118,8 +139,7 @@ async def test_get_users_unauthenticated(session, client: TestClient):
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-@pytest.mark.asyncio
-async def test_update_user(session, alexa, sally, client: TestClient):
+def test_update_user(alexa: models.User, sally: models.User, client: TestClient):
     """An authorized user can update his own data."""
     # the user to update
     user_id = alexa.id
@@ -127,7 +147,7 @@ async def test_update_user(session, alexa, sally, client: TestClient):
     update_data = {
                     "username": "Jeff Bezos",
                     "email": "bezos@amazon.com"
-                }
+                  }
     response = client.put(f"/users/{user_id}",
                         # add authentication
                         headers=auth_header(alexa),
@@ -140,8 +160,7 @@ async def test_update_user(session, alexa, sally, client: TestClient):
     assert updated["email"] == update_data["email"]
 
 
-@pytest.mark.asyncio
-async def test_update_user_enforces_data_integrity(session, alexa, sally, client: TestClient):
+def test_update_user_enforces_data_integrity(alexa: models.User, sally: models.User, client: TestClient):
     """Updates to a user cannot violate database constraints."""
     # the user to update
     user_id = alexa.id
@@ -159,32 +178,24 @@ async def test_update_user_enforces_data_integrity(session, alexa, sally, client
     # TODO If a required field is missing, should raise HTTP 400
 
 
-@pytest.mark.asyncio
-async def test_cannot_update_another_user(session, alexa, sally, client: TestClient):
+def test_cannot_update_another_user(alexa, sally, client: TestClient):
     """A user may update only his/her own data, not someone else's."""
-    # the user to update
-    user_id = alexa.id
     update_data = {
                     "username": "Jeff Bezos",
                     "email": "bezos@amazon.com"
                 }
-    response = client.put(f"/users/{user_id}",
-                        # add authentication
-                        headers=auth_header(sally),  # authenticate as someone else
-                        json=update_data
-                        )
+    response = client.put(f"/users/{alexa.id}",  # the user to update
+                          headers=auth_header(sally),  # authenticate as someone else
+                          json=update_data
+                          )
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-@pytest.mark.asyncio
-async def test_delete_user(session, alexa, auth_user, client: TestClient):
+def test_delete_user(alexa: models.User, auth_user: models.User, client: TestClient):
     """An authorized user can delete a user. For now, any authenticated user is authorized."""
     # the user to delete
     user_id = alexa.id
-    result = client.delete(f"/users/{user_id}",
-                        # add authentication
-                        headers=auth_header(auth_user)
-                        )
+    result = client.delete(f"/users/{user_id}", headers=auth_header(auth_user))
     # Should return HTTP 204
     assert result.status_code == status.HTTP_204_NO_CONTENT
     # user should no longer be fetchable
@@ -198,17 +209,15 @@ async def test_delete_user(session, alexa, auth_user, client: TestClient):
 @pytest.mark.asyncio
 async def test_unauthenticated_delete_user(session, sally, auth_user, client: TestClient):
     """An unauthorized request cannot delete a user."""
-    # injected user
+    # injected user to delete
     user_id = sally.id
-    # Use /users/delete
     result = client.delete(f"/users/{user_id}")
     # Should be either FORBIDDEN or UNAUTHORIZED
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
     # user is still in persistent storage
-    user = await user_dao.get_user(session, user_id)
+    user = await user_dao.get(session, user_id)
     assert user is not None, f"Unauthorized delete request deleted user {str(sally)}"
     assert user.id == user_id, f"Unauthorized delete request changed user id of {str(sally)}"
     # user should still be GET-able
     result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
-

@@ -11,7 +11,7 @@
 """
 import asyncio
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Type
 from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
@@ -42,8 +42,8 @@ class Database:
             raise ValueError("database_url is not set in config.Settings.")
         self.create_engine(settings.database_url)
 
-    # The asynccontextmanager annotation causes an error 
-    # with FastAPI's `Depends(...)` because FastAPI expects  
+    # This asynccontextmanager annotation causes an error
+    # with FastAPI's `Depends(...)` because FastAPI expects
     # a callable returning `Awaitable` or `AsyncGenerator`,
     # not a context manager function.
     # @asynccontextmanager
@@ -90,9 +90,16 @@ class Database:
             class_=AsyncSession,
         )
 
+    async def create_table(self, table: Type[Base]):
+        """Create a specific table from a models class that extends Base."""
+        async with self.engine.begin() as connection:
+            # Create the specified table
+            await connection.run_sync(table.__table__.create, checkfirst=True)
+
     async def create_tables(self):
         """Create all tables in the database. Used for testing."""
         async with self.engine.begin() as connection:
+            # This creates all tables
             await connection.run_sync(Base.metadata.create_all)
 
     async def destroy_tables(self):

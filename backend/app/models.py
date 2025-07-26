@@ -21,8 +21,10 @@
 
 # DateTime, Integer, TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, ForeignKey, String, Integer, TIMESTAMP
-from sqlalchemy import Boolean, ForeignKey, String, Integer, TIMESTAMP
+from typing import Any
+from uuid import UUID, uuid4
+from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, TIMESTAMP
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
 # from sqlalchemy.dialects.postgresql import UUID
@@ -31,8 +33,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # To initialize table schema using SqlAlchemy,
 # you must use the Base defined in the database module
 from app.core.database import Base
-from app.core.database import Base
-from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME, MAX_UNIT_NAME
+from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME
 
 
 def utcnow() -> datetime:
@@ -63,14 +64,12 @@ class User(Base):
                                     # Use client side code (default=...) instead.
                                     onupdate=utcnow
                                     )
-
-    # a uni-directional relationship.
-    # To make it bidirectional add backref=...
-    # or use back_populates=... on BOTH sides of the relationship
+    # a uni-directional relationship (use of UserPassword doesn't need reference to User)
+    # To make it bidirectional add backref="user" or back_populates=... in BOTH classes
     user_password: Mapped["UserPassword"] = relationship(
                                     "UserPassword",
-                                    backref="user",
                                     uselist=False,
+                                    # lazy="joined",  # don't use eager instantiation
                                     cascade="all, delete-orphan"
                                     )
 
@@ -107,7 +106,9 @@ class DataSource(Base):
                                     nullable=True
                                     )
     description: Mapped[str] = mapped_column(String(MAX_DESC), nullable=True)
-    unit: Mapped[str] = mapped_column(String(MAX_UNIT_NAME), nullable=True)
+    # dict of measurement names and corresponding measurement unit
+    # Use MutableDict or plain JSON?  DataSource should not change much.
+    metrics: Mapped[dict[str, str]] = mapped_column(MutableDict.as_mutable(JSON))
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
@@ -115,13 +116,68 @@ class DataSource(Base):
                                     nullable=False
                                     )
 
-    # Relationships (optional)
-    owner = relationship("User", foreign_keys=[owner_id], backref="data_sources")
+    # Related owner instance - without reverse relationship (no 'backpopulates' or 'backref')
+    owner: Mapped["User"] = relationship("User", lazy="joined")
+
+    def components(self) -> list[str]:
+        """Return a list of string names of the data components, i.e. keys in data attribute."""
+        return list(self.metrics.keys())
+
+    def unit(self, value_name: str) -> str:
+        """Return the unit name for a given value."""
+        if value_name not in self.metrics:
+            raise ValueError(f"No value named {value_name}")
+        return self.metrics[value_name]
 
     def __str__(self) -> str:
         """Return a string representation of a data source."""
         created_str = self.created_at.strftime("%d-%m-%Y") if self.created_at else "None"
         return f'id={self.id} "{self.name[:40]}" owner={self.owner_id} created {created_str}'
+
+
+class Reading(Base):
+    """A timestamp measurement(s) of value(s) of a DataSource."""
+    __tablename__ = "readings"
+    # id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(
+                                    TIMESTAMP(timezone=True),
+                                    default=utcnow,
+                                    nullable=False
+                                    )
+    data_source_id: Mapped[int] = mapped_column(
+                                    Integer,
+                                    ForeignKey("data_sources.id", ondelete="CASCADE"),
+                                    nullable=False
+                                    )
+    created_by_id: Mapped[int] = mapped_column(
+                                    Integer,
+                                    ForeignKey("users.id", ondelete="SET NULL"),
+                                    nullable=True
+                                    )
+    values: Mapped[dict[str, Any]] = mapped_column(
+                                    MutableDict.as_mutable(JSON),
+                                    nullable=False
+                                    )
+    
+    data_source = relationship("DataSource")
+
+    def get(self, value_name: str) -> Any:
+        """Get the value of one data element in this reading."""
+        if value_name not in self.values:
+            raise ValueError(f"No value named {value_name}")
+        return self.values[value_name]
+    
+    def set(self, value_name: str, value: Any) -> None:
+        """Set the value of one data element in this reading."""
+        if value_name not in self.values:
+            raise ValueError(f"No value named {value_name}")
+        self.values[value_name] = value
+
+    def __str__(self) -> str:
+        """Return a string representation of a reading."""
+        # time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
+        return f'id={self.id} source={self.data_source_id} {self.values}'
 
 
 # For testing. Normally you should do this in app/core/database.py
