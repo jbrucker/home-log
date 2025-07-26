@@ -90,10 +90,10 @@ class Database:
             class_=AsyncSession,
         )
 
-    async def create_table(table: Type[Base]):
+    async def create_table(self, table: Type[Base]):
         """Create a specific table from a models class that extends Base."""
-        async with db.engine.begin() as connection:
-            # Create the specied table
+        async with self.engine.begin() as connection:
+            # Create the specified table
             await connection.run_sync(table.__table__.create, checkfirst=True)
 
     async def create_tables(self):
