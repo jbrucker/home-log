@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, create_engine, Session, sessionmaker
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 # values from other experiments
 from app.schemas import User
