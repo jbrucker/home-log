@@ -1,0 +1,29 @@
+# Unversioned requirements for initial development.
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+python-decouple
+pydantic[email]
+# Password hashing and hash verification is used in ./app/core/security.py
+# For Argon2 hashes you can use either argon2-cffi or passlib[argon2].
+# passlib is just a wrapper for argon2-cffi and requires it.
+# Hence, for simplicity & current updates, I use argon2-cffi directly.
+#
+# If you want a consistent interface to multiple hashing algorithms
+# (like bcrypt), use: passlib[argon2] and/or passlib[bcrypt] 
+# argon2-cffi automatically also installs argon2-cffi-bindings
+argon2-cffi
+# passlib[argon2]
+# passlib[bcrypt]
+# jose provides JWT utilities.
+python-jose[cryptography]
+# python-multipart is needed to handle form data, like a username/password form
+python-multipart
+uuid7
+
+# Requirements for testing
+aiosqlite
+httpx
+pytest
+pytest-asyncio
