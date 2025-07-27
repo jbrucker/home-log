@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, create_engine, Session, sessionmaker
 
 # values from other experiments
-from app.schemas.schemas import UserOut
+from app.schemas import User
 from experiments.core import init_engine 
 
 engine = init_engine()  # from core
@@ -18,7 +18,7 @@ def get_session():
 app = FastAPI()
 
 # Dependency injection
-@app.post("/users/", response_model=UserOut)
+@app.post("/users/", response_model=User)
 
 if __name__ == '__main__':
     pass

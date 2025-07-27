@@ -1,9 +1,9 @@
 """Estimate time needed to compute a scrypt hash."""
 
-import sys
 import time
 import os
 import hashlib
+
 
 def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> float:
     """
@@ -32,6 +32,7 @@ def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> float:
     
     return (end_time - start_time)/max(count, 1), hash
 
+
 def run_experiment(password: str, n: int, r: int, p: int) -> None:
     """
     Run the scrypt time estimation experiment.
@@ -55,5 +56,13 @@ if __name__ == "__main__":
     r = 8      # Block size
     p = 1      # Parallelization factor
     run_experiment(password, n=16384, r=8, p=1)
-    # run_experiment(password, n=16384, r=16, p=1)   # runs out of memory
-    run_experiment(password, n=2*16384, r=8, p=1)
+
+    try:
+        run_experiment(password, n=16384, r=16, p=1)   # runs out of memory
+    except Exception as ex:
+        print("Exception:", ex)
+
+    try:
+        run_experiment(password, n=2*16384, r=8, p=1)   # runs out of memory
+    except Exception as ex:
+        print("Exception:", ex)

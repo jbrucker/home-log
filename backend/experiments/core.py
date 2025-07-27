@@ -1,10 +1,10 @@
-from sqlalchemy import Connection, Engine,create_engine
+from sqlalchemy import Connection, Engine, create_engine
 
 DATABASE_URL = "sqlite:///experiment.db"
 connection: Connection = None
 
 def init_engine() -> Engine:
-    engine = create_engine(DATABASE_URL, 
+    engine = create_engine(DATABASE_URL,
                            connect_args={},  # "check_same_thread": False for SQLite
                            pool_size=5,      # number of connections in the pool
                            logging_name="",

@@ -1,8 +1,9 @@
-"""Is the settings variable instantiated only once, 
-   or each time the module is imported?
+"""Is the settings variable instantiated only once, or each time the module is imported?
 
    Answer: It is instantiated only once.
 """
+# flake8: noqa: D107 (missing docstring)
+
 class Settings:
     COUNT = 0  # class variable
 
@@ -15,4 +16,5 @@ class Settings:
         cls.COUNT += 1
         return cls.COUNT
 
-settings = Settings()    
+
+settings = Settings()
