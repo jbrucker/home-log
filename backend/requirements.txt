@@ -26,4 +26,7 @@ uuid7
 aiosqlite
 httpx
 pytest
-pytest-asyncio
+pytest-
+
+# Needed only for establishing a synchronous database connection to Postgres.
+# Needed to run the app/utils/sqlite2postgres.py script.

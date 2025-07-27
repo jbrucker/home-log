@@ -1,10 +1,10 @@
-"""ORM Model for a User and a Password hash.
+"""ORM Models for User, Password, DataSource, and Readings.
 
-   Passwords are used only for local authentication, so
-   not all users have a password. Hence a separate table.
+   Passwords are used only for local authentication, so not
+   all users have a password. Hence a separate table is used.
    Users may be authenticated by other means, e.g. OAuth.
 
-   We need client-side computation of the current datetime
+   We use client-side computation of the current datetime
    (and timezone-aware) for two reasons:
 
    1. Testing with SQLite.  SQLite does not provide timezone-aware timestamps.
@@ -17,18 +17,23 @@
       For async access, if updated_at is defined with "onupdate=func.now"
       then an attempt is made to access the server, which raises a
       MissingGreenlet error when done outside the scope of a session.
+
+To initialize the table schema in a new database, use code like:
+```python
+    from app.core .database import db
+    db.create_tables()
+```
 """
 
-# DateTime, Integer, TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
+# Integer and TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
 from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, TIMESTAMP
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
 # from sqlalchemy.dialects.postgresql import UUID
-# import uuid
+# from uuid import UUID, uuid4
 
 # To initialize table schema using SqlAlchemy,
 # you must use the Base defined in the database module
@@ -49,7 +54,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(MAX_NAME))
     created_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
-                                    nullable=False, 
+                                    nullable=False,
                                     # server_default=func.now()
                                     default=utcnow
                                     )
@@ -159,7 +164,7 @@ class Reading(Base):
                                     MutableDict.as_mutable(JSON),
                                     nullable=False
                                     )
-    
+
     data_source = relationship("DataSource")
 
     def get(self, value_name: str) -> Any:
@@ -167,7 +172,7 @@ class Reading(Base):
         if value_name not in self.values:
             raise ValueError(f"No value named {value_name}")
         return self.values[value_name]
-    
+
     def set(self, value_name: str, value: Any) -> None:
         """Set the value of one data element in this reading."""
         if value_name not in self.values:
@@ -178,10 +183,3 @@ class Reading(Base):
         """Return a string representation of a reading."""
         # time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
         return f'id={self.id} source={self.data_source_id} {self.values}'
-
-
-# For testing. Normally you should do this in app/core/database.py
-#
-# def initialize_schema(engine):
-#    """Create the table schema."""
-#    db.create_tables()

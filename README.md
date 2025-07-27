@@ -58,6 +58,38 @@ See "Deployment" page in wiki.
    * Stop container and remove it: `docker compose down`
    * Also remove volumes: `docker compose down --volumes`
 
+## Using the Database Container
+
+The environment variables used in both Python code and docker-compose are in file `.env`.
+
+- Start the container
+  ```
+  docker-compose up -d db
+  ```
+- Other compose commands to know:
+  | Command          | Meaning                     |
+  |:-----------------|:----------------------------|
+  | docker-compose ps | List processes             |
+  | docker-compose stop db | Stop the service           |
+  | docker-compose down    | Remove the container (and lose data) |
+- Connect to database via command line (will prompt for password):
+  ```
+  psql -h localhost -p 5432 -U postgres_user -d homelog
+  ```
+  Or specify password as env var:
+  ```
+  PGPASSWORD=mypassword psql -h localhost -p 5432 -U username -d homelog
+  ```
+- Alternative: run `psql` inside the container:
+  ```
+  docker-compose exec db psql -U username -d homelog
+  ```
+- List tables:
+  ```
+  psql>  \dt
+  ```
+
+
 ## Postgres Version on Supabase
 
 Since I plan to use Supabase for the deployed database, their version of Postgres determines what Postgres features the app can use.
