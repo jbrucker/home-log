@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session, sessionmaker
 
 # values from other experiments
 from app.schemas import User
-from experiments.core import init_engine 
+from experiments.core import init_engine
 
 engine = init_engine()  # from core
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_session():
     session = SessionLocal()
@@ -19,8 +20,6 @@ def get_session():
 
 app = FastAPI()
 
-# Dependency injection
-@app.post("/users/", response_model=User)
 
 if __name__ == '__main__':
     pass

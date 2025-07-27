@@ -7,14 +7,16 @@ from sqlalchemy import Table, Column, MetaData
 # abstraction for database datatypes
 from sqlalchemy import Boolean, Integer, String, TIMESTAMP
 from sqlalchemy import sql  # for sql.func
-
 from core import init_engine, get_connection
+
+# flake8: noqa: D103 Missing Docstring
 
 # Global variables set in __main__  
 connection: Connection = None
 users: Table = None
 
 # Programmatic way to create table schema
+
 
 def create_schema(connection: Connection):
     """Create table schema.  Supposedly idempotent."""
@@ -35,7 +37,8 @@ def create_schema(connection: Connection):
         print(f"Error creating schema: {e}")
     return users
 
-def insert_user(email, username):
+
+def insert_user(email, username, engine: Engine):
     user_data = {'email': email, 'username': username}
     connection = get_connection()
     connection.execute(users.insert(), user_data)
@@ -44,7 +47,8 @@ def insert_user(email, username):
     # connection.execute(statement)
     connection.commit()
 
-def insert_user2(email, username) -> bool:
+
+def insert_user2(email, username):
     """Another way to insert a user."""
     from sqlalchemy import insert
     global users
@@ -54,7 +58,6 @@ def insert_user2(email, username) -> bool:
         connection.commit()
     except Exception as e:
         logging.error(f"Error inserting user {email}: {e}")
-        return False
 
 
 def show_users():
@@ -63,6 +66,7 @@ def show_users():
     for row in result:
         user = row._asdict()
         print(f'{user["id"]:4} {user["username"]:20} {user["email"]:20} {user["created_at"]}')
+
 
 def run_experiment1():
     insert_user("jb@gmail.com", "Jim")

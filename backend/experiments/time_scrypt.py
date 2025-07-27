@@ -3,9 +3,10 @@
 import time
 import os
 import hashlib
+from typing import Tuple
 
 
-def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> float:
+def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> Tuple[float, bytes]:
     """
     Estimate the time needed to compute a scrypt hash.
 
@@ -16,8 +17,8 @@ def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> float:
         p (int): Parallelization factor.
 
     Returns:
-        estimated time in seconds to compute the scrypt hash, averaged over multiple invocations.
-        the hashed password (but not the salt)
+        estimated time in seconds to compute the scrypt hash,
+        averaged over multiple invocations, and the last hashed password.
     """
     # Generate a random salt
     salt = os.urandom(16)
