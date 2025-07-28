@@ -28,7 +28,7 @@ To initialize the table schema in a new database, use code like:
 # Integer and TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
 from typing import Any
-from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, TIMESTAMP
+from sqlalchemy import Boolean, ForeignKey, Identity, Integer, JSON, String, TIMESTAMP
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
@@ -49,7 +49,10 @@ def utcnow() -> datetime:
 class User(Base):
     """Model for a User than can own DataSources."""
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     email: Mapped[str] = mapped_column(String(MAX_EMAIL), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(MAX_NAME))
     created_at: Mapped[datetime] = mapped_column(
@@ -59,7 +62,6 @@ class User(Base):
                                     default=utcnow
                                     )
     # updated_at is automatically updated by database?
-    # could this be a problem if datbase server is in a different timezone from application server?
     updated_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
                                     default=utcnow,
@@ -103,7 +105,10 @@ class UserPassword(Base):
 class DataSource(Base):
     """A source of data values, such as a meter or sensor."""
     __tablename__ = "data_sources"
-    id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     name: Mapped[str] = mapped_column(String(MAX_NAME), nullable=False)
     owner_id: Mapped[int] = mapped_column(
                                     Integer,
@@ -128,12 +133,6 @@ class DataSource(Base):
         """Return a list of string names of the data components, i.e. keys in data attribute."""
         return list(self.metrics.keys())
 
-    def unit(self, value_name: str) -> str:
-        """Return the unit name for a given value."""
-        if value_name not in self.metrics:
-            raise ValueError(f"No value named {value_name}")
-        return self.metrics[value_name]
-
     def __str__(self) -> str:
         """Return a string representation of a data source."""
         created_str = self.created_at.strftime("%d-%m-%Y") if self.created_at else "None"
@@ -144,7 +143,10 @@ class Reading(Base):
     """A timestamp measurement(s) of value(s) of a DataSource."""
     __tablename__ = "readings"
     # id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     timestamp: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
                                     default=utcnow,
