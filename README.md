@@ -67,11 +67,12 @@ The environment variables used in both Python code and docker-compose are in fil
   docker-compose up -d db
   ```
 - Other compose commands to know:
-  | Command          | Meaning                     |
-  |:-----------------|:----------------------------|
-  | docker-compose ps | List processes             |
-  | docker-compose stop db | Stop the service           |
+  | Command                | Meaning                     |
+  |:-----------------------|:----------------------------|
+  | docker-compose ps      | List processes              |
+  | docker-compose stop db | Stop the service            |
   | docker-compose down    | Remove the container (and lose data) |
+  
 - Connect to database via command line (will prompt for password):
   ```
   psql -h localhost -p 5432 -U postgres_user -d homelog
@@ -89,6 +90,17 @@ The environment variables used in both Python code and docker-compose are in fil
   psql>  \dt
   ```
 
+## Debug Container Problems
+
+1. View logs
+   ```
+   docker-compose logs backend
+   ```
+2. Inspect interactively (you should create a user in your Dockerfile or docker-compose)
+   ```
+   docker compuse run --rm backend sh  (or bash)
+   ```
+   and verify that the app code in in `/app` and `/app/app`.
 
 ## Postgres Version on Supabase
 

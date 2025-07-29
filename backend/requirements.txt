@@ -20,13 +20,4 @@ argon2-cffi
 python-jose[cryptography]
 # python-multipart is needed to handle form data, like a username/password form
 python-multipart
-uuid7
-
-# Requirements for testing
-aiosqlite
-httpx
-pytest
-pytest-
-
-# Needed only for establishing a synchronous database connection to Postgres.
-# Needed to run the app/utils/sqlite2postgres.py script.
+# uuid7

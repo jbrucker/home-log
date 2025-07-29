@@ -47,18 +47,8 @@ class Settings:
 # For production
 # settings = Settings()
 
-# A lightweight database for development use
-# Note the async SQLite URL uses aiosqlite
-dev_url = URL.create(
-        drivername="postgresql+asyncpg",
-        username=config("POSTGRES_USER"),
-        password=config("POSTGRES_PASSWORD"),
-        host="localhost",  # if running the script on host os
-        port=5432,
-        database=config("POSTGRES_DB")
-        )
-DEV_DATABASE_URL = dev_url.render_as_string(hide_password=False)
+# DATABASE_URL is defined in either .env or in docker-compose as an env var.
+DEV_DATABASE_URL = config("DATABASE_URL")
 
-# Run using a light-weight development database.
 # For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)
 settings = Settings(DEV_DATABASE_URL)
