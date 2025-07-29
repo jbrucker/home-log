@@ -25,9 +25,9 @@ async def fetch_user_with_password():
                 continue
             print(f"user id {user_id}", str(user))
             try:
-                # works only if 
+                # works only if
                 # 1. lazy="joined" is used in model def'n
-                # or 
+                # or
                 # 2. "get" with options=[joinedload(User.user_password)]
                 user_password: UserPassword = user.user_password
             except Exception as ex:

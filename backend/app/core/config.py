@@ -22,14 +22,14 @@ url = URL.create(
         database="homelog"
         )
 # convert to a plain, unmasked string
-url_str = url.__to_string__(hide_password=False)
+url_str = url.render_as_string(hide_password=False)
 """
 
 
 class Settings:
     """Global constants based on environment variables or specified values."""
 
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: str = ""):
         """Create application settings using environment vars or hardcoded values."""
         self.database_url = database_url if database_url else config("DATABASE_URL")
 
@@ -57,7 +57,7 @@ dev_url = URL.create(
         port=5432,
         database=config("POSTGRES_DB")
         )
-DEV_DATABASE_URL = dev_url.__to_string__(hide_password=False)
+DEV_DATABASE_URL = dev_url.render_as_string(hide_password=False)
 
 # Run using a light-weight development database.
 # For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)

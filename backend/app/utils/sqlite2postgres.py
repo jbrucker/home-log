@@ -1,10 +1,12 @@
-"""Create table schema for a "dev" database using PostgreSQL and running
-   in a Docker container.  Then copy data from the Sqlite database to Postgres.
+"""Create table schema for a "dev" database using PostgreSQL in a Docker container.
+
+   Then copy data from the Sqlite database to Postgres.  This totally screwed up the
+   auto-generated index mechanism. Subsequent creates (INSERT) caused Integrity errors.
 """
 
 import json
 from tqdm import tqdm  # for progress bar. Requires: pip install tqdm
-from sqlalchemy import create_engine, MetaData, URL, make_url
+from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import sessionmaker
 from decouple import config
 
@@ -53,7 +55,7 @@ def migrate_data(batch_size=1000):
     """Migrate data from SQLite to PostgreSQL with JSON conversion."""
     sqlite_session = SqliteSession()
     pg_session = PgSession()
-    
+
     # Get all model classes from your Base
     models = Base.registry._class_registry.values()
 
@@ -76,7 +78,7 @@ def migrate_data(batch_size=1000):
         for i, record in enumerate(tqdm(records, desc=table_name)):
             # Convert JSON fields
             data = {c.name: getattr(record, c.name) for c in model.__table__.columns}
-            
+
             for col in json_columns:
                 if col in data and data[col] is not None and isinstance(data[col], str):
                     try:

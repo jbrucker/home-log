@@ -68,3 +68,12 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
 
 
 ---
+
+
+## Mypy
+
+`pip install mypy` installed 3 packages:
+- `mypy-1.17.0` 
+- `mypy_extensions-1.1.0` 
+- `pathspec-0.12.1`
+

@@ -25,7 +25,7 @@ async def create(Model: Type[models.Base], session: AsyncSession, data: Type[sch
     :raises ValueError: if any required values are missing or invalid (Note)
 
     Note: the Schema object should perform data validation, so a ValueError on
-          save indicates an inconsistency between schema validators and 
+          save indicates an inconsistency between schema validators and
           database requirements.
     """
     try:
@@ -123,9 +123,10 @@ async def delete_by_id(Model: Type[Base], session: AsyncSession, entity_id: Any)
 
 def paginate(stmt: Select, limit: int = 0, offset: int = 0) -> Select:
     """Apply options to paginate result of a Select statement.
+
        The statement (stmt) should already contain a `.order_by` clause
        for the desired ordering.
-    '"""
+    """
     if offset > 0:
         stmt = stmt.offset(offset)
     if limit > 0:

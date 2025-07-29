@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=['Authentication'])
 
+
 @router.get('/login', response_class=HTMLResponse)
 async def loginform():
     """Return a login form in html."""
@@ -27,7 +28,7 @@ async def loginform():
 
 
 @router.post('/login', response_model=schemas.Token)
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
           session: Session = Depends(database.db.get_session)):
     """Authenticate user and return a JWT token for this session.
 
@@ -50,22 +51,22 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     user = await user_dao.get_by_email(session, email=email)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail=f"Invalid Credentials",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Credentials",
             headers={"WWW-Authenticate": "Bearer"}
             )
     hashed_password = await user_dao.get_password(session, user)
     if not hashed_password:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"User does not have local password credential",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have local password credential",
             headers={"WWW-Authenticate": "Bearer"}
             )
 
     if not security.verify_password(hashed_password=hashed_password, plain_password=password):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"Invalid Credentials",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid Credentials",
             headers={"WWW-Authenticate": "Bearer"}
             )
 

@@ -3,16 +3,16 @@ import asyncio
 
 from sqlalchemy import select
 from app.core.database import db, Base
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-
-
-# Switch to a temporary in-memory SQLite database
-database_url = "sqlite+aiosqlite:///:memory:" 
-db.create_engine(database_url)
-
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.models import User
 
-# What is this?
+# flake8: noqa: D103 Missing docstring. This is just an experiment, stupid!
+
+# Switch to a temporary in-memory SQLite database
+database_url = "sqlite+aiosqlite:///:memory:"
+db.create_engine(database_url)
+
+
 # The name used in documentation is misleading.
 # async_session_factory() returns a sqlalchemy.ext.asyncio.session.AsyncSession
 async_session_factory = async_sessionmaker(
@@ -20,13 +20,14 @@ async_session_factory = async_sessionmaker(
         expire_on_commit=False
 )
 
+
 async def create_tables():
     """Create tables in the database."""
     async with db.engine.begin() as conn:
         # Create all tables defined in the models
         await conn.run_sync(Base.metadata.create_all)
 
- 
+
 async def create_users():
     async with async_session_factory() as session:
         user1 = User(email="rangjut@yahoo.com", username="Rangjut")
@@ -47,7 +48,7 @@ async def get_user(username: str) -> User | None:
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
     # should be inside with block?
-    return user    
+    return user
 
 
 async def what_the_hell_are_these():
@@ -59,11 +60,13 @@ async def what_the_hell_are_these():
     print("session.commit() is", type(await session.commit()))
     print("")
 
+
 def print_user(user: User | None) -> None:
     if user:
         print(f"Found user {user.username} <{user.email}> with id {user.id}")
     else:
         print("No user")
+
 
 async def main():
     await what_the_hell_are_these()
@@ -77,6 +80,7 @@ async def main():
     input("Get user Santa")
     user = await get_user("Santa")
     print_user(user)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

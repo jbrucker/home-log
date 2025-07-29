@@ -3,7 +3,10 @@
 import asyncio
 from dataclasses import dataclass
 from typing import Any
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import db
+from app.data_access import user_dao
+# Import ORM models
+from app import schemas
 from app.core.database import db
 from app.data_access import user_dao
 
@@ -16,16 +19,11 @@ from app.data_access import user_dao
 # DATABASE_URL = "sqlite+aiosqlite:///test.sqlite3"
 # DATABASE_URL = "postgresql+asyncpg://user:password@localhost/mydatabase"
 
-# Import ORM models
-from app.models import User, UserPassword
-from app import schemas
-from app.core.database import db 
-from app.data_access import user_dao
+# flake8: noqa: F811 redefinition of imported name (fixtures, flake8 is wrong)
 
 
-async def insert_sample_users(user_data: list[dict[str,Any]]):
+async def insert_sample_users(user_data: list[dict[str, Any]]):
     """Insert sample users into the database."""
-    
     async for session in db.get_session():
         assert session is not None, "No session"
 
@@ -50,7 +48,7 @@ async def insert_sample_users(user_data: list[dict[str,Any]]):
                 print(f'{user.email} has password "{plain_password}" hash "{hashed_password[:40]}..."')
             except Exception as ex:
                 print(f"Exception setting password for {user.email}", ex)
-    
+
 
 async def assign_user_password(email: str, password: str):
     """Assign a password to a user by email."""
@@ -82,8 +80,8 @@ async def main():
                 {'email': "harry@hackers.com", 'username': "Harry", 'password': "hackme2"},
                 {'email': "sally@hackers.com", 'username': "Sally", 'password': "hackme2"},
                 {'email': "admin@localhost.com",'username': "admin", 'password': "MakeMyDay"}
-            ]
-    
+                ]
+
     # Insert sample users
     await insert_sample_users(user_data)
 
@@ -98,6 +96,7 @@ class Person:
 
 def make_people(user_data: list[dict[str, Any]]):
     """Experiment how to pass a dict to constructor or function as name=value pairs?
+
        Answer:  use **data where data is the dict of params.
     """
     for data in user_data:
