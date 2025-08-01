@@ -49,8 +49,7 @@ CREATE TABLE IF NOT EXISTS public.readings (
 	"timestamp"    TIMESTAMPTZ   DEFAULT CURRENT TIMESTAMP,
 	data_source_id INTEGER       REFERENCES data_sources(id) ON DELETE SET NOT NULL,
 	created_by_id  INTEGER       REFERENCES users(id) ON DELETE SET NULL,
-	"values"       JSONB         NOT NULL,
-	CONSTRAINT readings_pkey PRIMARY KEY (id)
+	"values"       JSONB         NOT NULL
 );
 
 -- Optional: index for faster query by data source id + timestamp
