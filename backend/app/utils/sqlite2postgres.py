@@ -5,7 +5,7 @@
 """
 
 import json
-from tqdm import tqdm  # for progress bar. Requires: pip install tqdm
+# from tqdm import tqdm  # for progress bar. Requires: pip install tqdm
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import sessionmaker
 from decouple import config
@@ -59,7 +59,7 @@ def migrate_data(batch_size=1000):
     # Get all model classes from your Base
     models = Base.registry._class_registry.values()
 
-    for model in tqdm(models, desc="Migrating tables"):
+    for model in models:
         if not hasattr(model, '__tablename__'):
             continue
 
@@ -75,7 +75,7 @@ def migrate_data(batch_size=1000):
         # ]
         json_columns = ["values", "metrics"]
         # Batch insert into PostgreSQL
-        for i, record in enumerate(tqdm(records, desc=table_name)):
+        for i, record in records:
             # Convert JSON fields
             data = {c.name: getattr(record, c.name) for c in model.__table__.columns}
 
