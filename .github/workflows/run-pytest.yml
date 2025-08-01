@@ -32,7 +32,7 @@ jobs:
         if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
     - name: Copy testing env-variable values to .env
       run: |
-        if [ -f testing.env ]; cp testing.env .env; fi
+        if [ -f testing.env ]; then cp testing.env .env; fi
     - name: Lint with flake8
       run: |
         cd backend
