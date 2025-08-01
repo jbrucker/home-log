@@ -8,8 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import models
 from .fixtures import session, user1, user2
 
-# Ignore F811 Parameter name shadows import
-# flake8: noqa: F811
+# flake8: noqa: F811 Parameter name shadows import
 
 
 @pytest.mark.asyncio

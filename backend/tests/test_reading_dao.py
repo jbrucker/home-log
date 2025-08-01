@@ -11,8 +11,8 @@ from app.data_access import reading_dao as dao
 from .utils import as_utc_time
 from .fixtures import db, session, ds1, ds2, user1, user2
 
-# Ignore F811 Parameter name shadows import
-# flake8: noqa: E251, F811
+# flake8: noqa: E251
+# flake8: noqa: F811 Parameter name shadows import
 
 logger = logging.getLogger(__name__)
 

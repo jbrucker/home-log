@@ -1,11 +1,29 @@
 """Fixtures for unit testing.
 
-   To verify fixtures are found use:  pytest --fixtures
+   To verify the fixtures are found use:  pytest --fixtures
 
-   A test database is configured in conftest.py, pytest_sessionstart().
+   A test database is configured in conftest.py: pytest_sessionstart().
+
+   I removed the "globalsetup" fixture because it was not being invoked:
+   @pytest.fixture(scope="session")
+   def globalsetup(session):
+       configure_logging()
+       logging.getLogger("fixtures").info(f"Logging initialized by {__name__}")
+       yield
+       # run this after all tests
+       event_log("Finish fixtures.globalsetup() after yield")
+
+   Instead, do session-level initialization and teardown in conftest.py
+
+   Another BUG: pytest_asyncio.fixture does not honor the `scope=` parameter.
+   Problem:  You can't use a synchronous fixture as a fixture parameter
+             in an async fixture.
+   This doesn't work:
+   @pytest_asyncio.fixture(scope="session")
+   def myfixture(session):
 """
+# flake8: noqa: D401 First line should be in imperative mood
 
-import logging
 import pytest, pytest_asyncio
 from fastapi.testclient import TestClient
 from app.core import security
@@ -17,23 +35,6 @@ from .conftest import TEST_DATABASE_URL
 
 AUTH_USER_EMAIL = "admin@localhost.com"
 AUTH_USER_PASSWORD = "MakeMyDay"
-
-
-# A session-level "fixture" for logging. scope="session" means it is used only once.
-# BUG: pytest_asyncio.fixture does not honor the `scope=` parameter.
-# @pytest_asyncio.fixture(scope="session")
-# PROBLEM: You can't use a synchronous fixture as a fixture parameter in an async fixture.
-# WORK-AROUND: Put all session-level test configuration in conftext.py
-@pytest.fixture(scope="session")
-def globalsetup():
-    """Perform global configuration, but this is never invoked."""
-    from .conftest import configure_logging, event_log
-    event_log("Run fixtures.globalsetup()")
-    configure_logging()
-    logging.getLogger("fixtures").info(f"Logging initialized by {__name__} fixture")
-    yield
-    # run after all tests
-    event_log("Finish fixtures.globalsetup() after yield")
 
 
 @pytest_asyncio.fixture()
@@ -72,6 +73,7 @@ async def auth_user(session) -> models.User:
 @pytest.fixture()
 async def async_client():
     """Async test fixture for client, DOES NOT WORK as FastAPI test client.
+
        Use the `client` fixture instead.
     """
     from httpx import AsyncClient

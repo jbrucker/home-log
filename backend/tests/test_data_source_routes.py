@@ -11,8 +11,7 @@ from app.utils import jwt
 from .fixtures import session, alexa, sally, client
 from .utils import auth_header
 
-# Ignore F811 Parameter name shadows import
-# flake8: noqa: F811
+# flake8: noqa: F811 Parameter name shadows import
 
 
 def test_create_data_source_as_authenticated(alexa: models.User, client: TestClient):

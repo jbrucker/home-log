@@ -13,7 +13,7 @@ logging.basicConfig(
     format="\033[32m%(levelname)s\033[0m: %(module)s \033[35m%(message)s\033[0m"
 )
 logger = logging.getLogger("main")
-logger.info(f"Database URL {str(db.engine.url)}")
+logger.info(f"Database URL is {str(db.engine.url)}")
 
 
 @asynccontextmanager
