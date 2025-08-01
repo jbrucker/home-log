@@ -3,8 +3,6 @@
 import asyncio
 from dataclasses import dataclass
 from typing import Any
-from app.core.database import db
-from app.data_access import user_dao
 # Import ORM models
 from app import schemas
 from app.core.database import db
