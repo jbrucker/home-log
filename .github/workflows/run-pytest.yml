@@ -28,7 +28,8 @@ jobs:
         cd backend
         python -m pip install --upgrade pip
         pip install pytest flake8
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # requirements-dev.txt includes requirements.txt + packages needed for tests
+        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
     - name: Copy testing env-variable values to .env
       run: |
         if [ -f testing.env ]; cp testing.env .env; fi
