@@ -7,9 +7,10 @@ import re
 # from annotated_types import MinLen, MaxLen
 from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
-from uuid import UUID
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, SecretStr
 from app.core.config import MAX_DESC, MAX_EMAIL, MAX_NAME
+# If using UUID for ids:
+# from uuid import UUID
 
 
 def _validate_password(secret: SecretStr) -> SecretStr:

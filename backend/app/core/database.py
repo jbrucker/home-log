@@ -4,15 +4,16 @@
    db.create_engine(url) change the URL of the database engine and connection.
                        This is intended for running tests.
    db.get_session() - an async generator for AsyncSession objects
-   db.create_tables - create table schema using SqlAlchemy ORM model classes 
+   db.create_tables - create table schema using SqlAlchemy ORM model classes
                        defined using `Base` from this module.
-   db.delete_tables - delete table schema   
+   db.delete_tables - delete table schema
    Use of `db.create_tables` is optional -- you can create schema in many ways.
 """
 import asyncio
 import logging
 from typing import AsyncGenerator, Type
-from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
@@ -34,7 +35,7 @@ class Database:
 
     engine: AsyncEngine
 
-    def __init__(self, database_url: str = None) -> None:
+    def __init__(self, database_url: str = "") -> None:
         """Initialize an SqlAlchemy database engine and connect to a URL."""
         if database_url:
             settings.database_url = database_url
@@ -118,7 +119,7 @@ class Database:
         # Get all model classes
         models = [cls for cls in Base.__subclasses__()
                   if hasattr(cls, '__tablename__')]
-        
+
         # Sort models by dependency (simple approach - may need adjustment)
         # This is to avoid ForeignKey constraint violations during delete.
         models.sort(key=lambda x: len(x.__table__.foreign_keys), reverse=True)
@@ -135,7 +136,7 @@ class Database:
         async for session in self.get_session():
             for table in reversed(Base.metadata.sorted_tables):
                 await session.execute(table.delete())
-            await session.commit()     
+            await session.commit()
 
 
 # Shared database instance

@@ -1,10 +1,10 @@
-"""ORM Model for a User and a Password hash.
+"""ORM Models for User, Password, DataSource, and Readings.
 
-   Passwords are used only for local authentication, so
-   not all users have a password. Hence a separate table.
+   Passwords are used only for local authentication, so not
+   all users have a password. Hence a separate table is used.
    Users may be authenticated by other means, e.g. OAuth.
 
-   We need client-side computation of the current datetime
+   We use client-side computation of the current datetime
    (and timezone-aware) for two reasons:
 
    1. Testing with SQLite.  SQLite does not provide timezone-aware timestamps.
@@ -17,18 +17,23 @@
       For async access, if updated_at is defined with "onupdate=func.now"
       then an attempt is made to access the server, which raises a
       MissingGreenlet error when done outside the scope of a session.
+
+To initialize the table schema in a new database, use code like:
+```python
+    from app.core .database import db
+    db.create_tables()
+```
 """
 
-# DateTime, Integer, TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
+# Integer and TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
-from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, TIMESTAMP
+from sqlalchemy import Boolean, ForeignKey, Identity, Integer, JSON, String, TIMESTAMP
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 # If using UUID for keys add these:
 # from sqlalchemy.dialects.postgresql import UUID
-# import uuid
+# from uuid import UUID, uuid4
 
 # To initialize table schema using SqlAlchemy,
 # you must use the Base defined in the database module
@@ -44,17 +49,19 @@ def utcnow() -> datetime:
 class User(Base):
     """Model for a User than can own DataSources."""
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     email: Mapped[str] = mapped_column(String(MAX_EMAIL), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(MAX_NAME))
     created_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
-                                    nullable=False, 
+                                    nullable=False,
                                     # server_default=func.now()
                                     default=utcnow
                                     )
     # updated_at is automatically updated by database?
-    # could this be a problem if datbase server is in a different timezone from application server?
     updated_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
                                     default=utcnow,
@@ -98,7 +105,10 @@ class UserPassword(Base):
 class DataSource(Base):
     """A source of data values, such as a meter or sensor."""
     __tablename__ = "data_sources"
-    id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     name: Mapped[str] = mapped_column(String(MAX_NAME), nullable=False)
     owner_id: Mapped[int] = mapped_column(
                                     Integer,
@@ -123,12 +133,6 @@ class DataSource(Base):
         """Return a list of string names of the data components, i.e. keys in data attribute."""
         return list(self.metrics.keys())
 
-    def unit(self, value_name: str) -> str:
-        """Return the unit name for a given value."""
-        if value_name not in self.metrics:
-            raise ValueError(f"No value named {value_name}")
-        return self.metrics[value_name]
-
     def __str__(self) -> str:
         """Return a string representation of a data source."""
         created_str = self.created_at.strftime("%d-%m-%Y") if self.created_at else "None"
@@ -139,7 +143,10 @@ class Reading(Base):
     """A timestamp measurement(s) of value(s) of a DataSource."""
     __tablename__ = "readings"
     # id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(Integer,
+                                    Identity(always=False),
+                                    primary_key=True
+                                    )
     timestamp: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
                                     default=utcnow,
@@ -159,7 +166,7 @@ class Reading(Base):
                                     MutableDict.as_mutable(JSON),
                                     nullable=False
                                     )
-    
+
     data_source = relationship("DataSource")
 
     def get(self, value_name: str) -> Any:
@@ -167,7 +174,7 @@ class Reading(Base):
         if value_name not in self.values:
             raise ValueError(f"No value named {value_name}")
         return self.values[value_name]
-    
+
     def set(self, value_name: str, value: Any) -> None:
         """Set the value of one data element in this reading."""
         if value_name not in self.values:
@@ -178,10 +185,3 @@ class Reading(Base):
         """Return a string representation of a reading."""
         # time_str = self.timestamp.strftime("%d-%m-%Y %H:%M:%S") if self.timestamp else "None"
         return f'id={self.id} source={self.data_source_id} {self.values}'
-
-
-# For testing. Normally you should do this in app/core/database.py
-#
-# def initialize_schema(engine):
-#    """Create the table schema."""
-#    db.create_tables()

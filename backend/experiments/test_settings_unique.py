@@ -1,4 +1,4 @@
-"""Test whether an instance created in a module is created each time
+"""Test whether an instance created in a module is created each time \
    the module is imported or created only once.
 
 The config module (config.py) creates a Settings instance like this:
@@ -14,7 +14,7 @@ and other modules import this file. The "database" module creates
 an 'engine' with similar code.
 
 Answer: `settings` is created only once.
-""" 
+"""
 
 from config import settings
 import test_settings_unique_helper as helper

@@ -12,8 +12,8 @@ from .fixtures import client, auth_user, session
 from .fixtures import alexa, sally
 from .utils import auth_header, create_users
 
-# flake8: noqa: F811
-# F811 redefinition of import by parameter (fixtures)
+# flake8: noqa: F811 Redefinition of import by parameter (fixtures)
+
 
 @pytest.mark.asyncio
 async def test_create_user(session, auth_user: models.User, client: TestClient):

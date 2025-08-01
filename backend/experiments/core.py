@@ -1,9 +1,12 @@
+"""Create an engine and do something with it."""
 from sqlalchemy import Connection, Engine, create_engine
 
-DATABASE_URL = "sqlite:///experiment.db"
+DATABASE_URL = "sqlite:///experiment.sqlite3"
 connection: Connection = None
 
+
 def init_engine() -> Engine:
+    """Create an engine, of course."""
     engine = create_engine(DATABASE_URL,
                            connect_args={},  # "check_same_thread": False for SQLite
                            pool_size=5,      # number of connections in the pool
@@ -19,4 +22,3 @@ def get_connection(engine: Engine) -> Connection:
     if not connection or connection.closed:
         connection = engine.connect()
     return connection
-

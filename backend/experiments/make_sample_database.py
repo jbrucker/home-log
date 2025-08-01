@@ -1,4 +1,4 @@
-"""Create a sample database and some users. """
+"""Create a sample database and some users."""
 
 import asyncio
 from typing import Type
@@ -33,7 +33,7 @@ async def insert_sample_users(users: list[User] = None):
                  User(email="sally@hackers.com", username="Sally")
                 ]  # noqa: E124
     password = "hackme2"
-    
+
     async for session in db.get_session():
         # Use the session to add the user
         await session.begin()
@@ -104,7 +104,7 @@ async def main():
     db.create_engine(database_url)
     print("Database engine url", str(db.engine.url))
 
-    #await create_tables()
+    # await create_tables() -- creates all tables
     await create_table(models.Reading)
     await get_table_names()
 

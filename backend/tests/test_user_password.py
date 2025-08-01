@@ -9,8 +9,7 @@ from app import schemas, models
 from .fixtures import session  # noqa: F401
 from . import utils
 
-# Ignore F811 "Redefinition of unused import" for test fixtures used as parameters
-# flake8: noqa: F811
+# flake8: noqa: F811 "Redefinition of unused import" for test fixtures
 
 
 @pytest.mark.asyncio

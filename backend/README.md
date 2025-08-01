@@ -19,9 +19,9 @@ Or invoke the `runserver.sh` script.
 
 | username | email            | password |
 |----------|------------------|----------|
-| Jim      |jim@hackers.com   | hackme2  |
-| Harry    |harry@hackers.com | hackme2  | 
-| Sally    |sally@hackers.com | hackme2  |
+| Jim      |jim@hackers.com   | Hackme2  |
+| Harry    |harry@hackers.com | Hackme2  | 
+| Sally    |sally@hackers.com | Hackme2  |
 | admin    |admin@localhost.com | MakeMyDay |
 
 
@@ -68,3 +68,12 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
 
 
 ---
+
+
+## Mypy
+
+`pip install mypy` installed 3 packages:
+- `mypy-1.17.0` 
+- `mypy_extensions-1.1.0` 
+- `pathspec-0.12.1`
+

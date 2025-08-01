@@ -1,6 +1,7 @@
 """Create and decode JWT tokens.
 
-This module is independent of SqlAlchemy and Pydantic."""
+This module is independent of SqlAlchemy and Pydantic.
+"""
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
@@ -15,10 +16,9 @@ EXPIRY = "exp"
 
 
 def create_access_token(data: dict, expires: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
-    """Create a JWT token containing the `data` dict as payload, 
-    along with an expiry datetime.  If `expires` is not given then
-    a default from app settings (created from env vars) is used.
-    
+    """Create a JWT token containing the `data` dict as payload, with an expiry datetime.
+
+    If `expires` is not given then a default from app settings (created from env vars) is used.
     :param data: dict of values for payload
     :param expires: (optional) number of minutes after which token expires
     """
@@ -45,10 +45,10 @@ def verify_access_token(token: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
         # Check for required fields
-        #user_id: str = payload.get("user_id")
+        # user_id: str = payload.get("user_id")
         expiry = payload.get(EXPIRY)
         print(f"{EXPIRY}: ", expiry)
-    #except jose.exceptions.JWTError as ex:
+    # except jose.exceptions.JWTError as ex:
     except Exception as ex:
         # includes ExpiredSignatureError, JWTClaimsError
         logging.error(f"JWT decoding error: {ex}")
@@ -57,7 +57,7 @@ def verify_access_token(token: str) -> dict[str, Any]:
     # Verify token not expired. This is also done be jwt.decode
     # The expiry (`exp`) is stored in token as an int timestamp.
     # datetime.fromtimestamp(exp) works in my experiments
-    
+
     expiry_datetime = datetime.fromtimestamp(expiry, tz=timezone.utc)
     if expiry_datetime < datetime.now(timezone.utc):
         # millisecond-granularity check for expiry (jwt uses seconds)
@@ -67,6 +67,7 @@ def verify_access_token(token: str) -> dict[str, Any]:
 
 
 def test_tokens(expires: int = 1):
+    """Create a token, then extract and print values from the token."""
     payload = {"user_id": 999, "email": "santa@northpole.org", "junk": "no"}
     token = create_access_token(payload, expires=expires)
 
@@ -82,6 +83,7 @@ def test_tokens(expires: int = 1):
     local_tz = datetime.now().astimezone().tzinfo  # = ZoneInfo("Asia/Bangkok")
     local_time = datetime.fromtimestamp(expiry, tz=local_tz)
     print("Local Time", local_time)
+
 
 if __name__ == '__main__':
     for expires_in in [1, 0, -1]:

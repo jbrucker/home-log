@@ -26,7 +26,7 @@ async def create(session: AsyncSession, user_data: schemas.UserCreate) -> models
     :raises ValueError: if any required values are missing or invalid (Note)
 
     Note: the Schema object should perform data validation, so a ValueError on
-          save indicates an inconsistency between schema validators and 
+          save indicates an inconsistency between schema validators and
           database requirements.
     """
     return await base_dao.create(models.User, session, user_data)
@@ -60,7 +60,7 @@ async def get_by_email(session: AsyncSession, email: str) -> models.User | None:
 async def get_users(session: AsyncSession, limit: int = 0, offset: int = 0) -> list[models.User]:
     """Get all users, ordered by user.id.
 
-    This method does **not** eagerly load user_password relations. 
+    This method does **not** eagerly load user_password relations.
     For access to a user's password use `get_user_by_id` or `get_user_password`.
 
     :param limit: max number of values to return, default is unlimited
@@ -141,7 +141,7 @@ async def get_password(session: AsyncSession, user: models.User | int) -> str | 
     result = await session.execute(stmt)
     # raises sqlalchemy.exc.MultipleResultsFound if more than one match
     if user_password := result.scalar_one_or_none():
-        return user_password.hashed_password 
+        return user_password.hashed_password
     else:
         None
 
@@ -152,7 +152,7 @@ async def set_password(session: AsyncSession,
                        ) -> models.UserPassword | None:
     """Set or update a user's password.
 
-    :param user: a models.User or user id (int) of a User 
+    :param user: a models.User or user id (int) of a User
     :param password: plain text of the new password
     :returns: UserPassword with the updated password
     :raises ValueError: If no User with the given user_id value

@@ -2,33 +2,34 @@
 
 import os
 from decouple import config
+from sqlalchemy import URL
 
-
-# Maximum length for some string fields
-MAX_NAME = 60       # A descriptive name can be a bit long
-MAX_DESC = 80       # descriptions. For TEXT fields length is unlimited.
+# Maximum length for some string fields in database schema
+MAX_NAME = 60       # Name of a data source may be a bit long
+MAX_DESC = 80       # descriptions. For TEXT fields the length is unlimited.
 MAX_EMAIL = 160     # Email address. Pydantic limit is 64+1+67 chars.
-MAX_ADDRESS = 160   # address or location
-MAX_UNIT_NAME = 20  # unit names like 'kWhr', 'deg-C', 'meters'
+MAX_ADDRESS = 160   # (not used) address or location
+MAX_UNIT_NAME = 20  # (not used) unit names like 'kWhr', 'deg-C', 'meters'
 
 # Clean way to create a database URL for Postgres
 """
 from sqlalchemy.engine import URL
 url = URL.create(
-        drivername="postgresql+async",
+        drivername="postgresql+asyncpg",
         username="postgres",
         password="FatChance",
         host="db",  # for Docker container
         database="homelog"
         )
+# convert to a plain, unmasked string
+url_str = url.render_as_string(hide_password=False)
 """
 
-class Settings:
-    """Globally available constants based on environment variables
-       or specified values (for testing).
-    """
 
-    def __init__(self, database_url:str = None):
+class Settings:
+    """Global constants based on environment variables or specified values."""
+
+    def __init__(self, database_url: str = ""):
         """Create application settings using environment vars or hardcoded values."""
         self.database_url = database_url if database_url else config("DATABASE_URL")
 
@@ -46,10 +47,8 @@ class Settings:
 # For production
 # settings = Settings()
 
-# A lightweight database for development use
-# Note the async SQLite URL uses aiosqlite
-DEV_DATABASE_URL = "sqlite+aiosqlite:///./dev.sqlite3"
+# DATABASE_URL is defined in either .env or in docker-compose as an env var.
+DEV_DATABASE_URL = config("DATABASE_URL", "")
 
-# Run using a light-weight development database.
 # For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)
 settings = Settings(DEV_DATABASE_URL)

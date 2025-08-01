@@ -12,8 +12,7 @@ from .fixtures import session
 from .fixtures import alexa, client, ds1, ds2, user1, user2
 from .utils import auth_header
 
-# Ignore F811 Parameter name shadows import
-# flake8: noqa: F811
+# flake8: noqa: F811 Parameter name shadows import
 
 
 def reading_url(source_id: int, reading_id: int = None) -> str:

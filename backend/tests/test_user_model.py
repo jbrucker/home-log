@@ -8,8 +8,7 @@ from .utils import as_utc_time, is_timezone_aware
 # Import of session fixture is necessary
 from .fixtures import db, session
 
-# Ignore F811 Parameter name shadows import
-# flake8: noqa: F811
+# flake8: noqa: F811 Parameter name shadows import
 
 
 @pytest.fixture

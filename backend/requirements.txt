@@ -20,10 +20,4 @@ argon2-cffi
 python-jose[cryptography]
 # python-multipart is needed to handle form data, like a username/password form
 python-multipart
-uuid7
-
-# Requirements for testing
-aiosqlite
-httpx
-pytest
-pytest-asyncio
+# uuid7

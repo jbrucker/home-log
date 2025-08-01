@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.sqlite3
+*.log
+.git/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.vscode/

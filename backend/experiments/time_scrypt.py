@@ -30,8 +30,8 @@ def estimate_scrypt_time(password: str, n: int, r: int, p: int) -> Tuple[float, 
     for _ in range(count):
         hash = hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, maxmem=0)
     end_time = time.time()
-    
-    return (end_time - start_time)/max(count, 1), hash
+
+    return (end_time - start_time) / max(count, 1), hash
 
 
 def run_experiment(password: str, n: int, r: int, p: int) -> None:
@@ -64,6 +64,6 @@ if __name__ == "__main__":
         print("Exception:", ex)
 
     try:
-        run_experiment(password, n=2*16384, r=8, p=1)   # runs out of memory
+        run_experiment(password, n=2 * 16384, r=8, p=1)   # runs out of memory
     except Exception as ex:
         print("Exception:", ex)

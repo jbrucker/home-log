@@ -1,0 +1,17 @@
+# Runtime requirements
+-r requirements.txt
+
+# Requirements for testing
+aiosqlite
+httpx
+pytest
+pytest-asyncio
+
+# Linting
+flake8
+flake8-docstrings
+# Brutal type checking
+mypy
+
+# Needed only for establishing a synchronous database connection to Postgres.
+# Needed to run the app/utils/sqlite2postgres.py script.

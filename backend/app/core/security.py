@@ -11,7 +11,7 @@ from argon2.exceptions import VerifyMismatchError
 pwd_context = PasswordHasher()
 
 
-def hash_password(password: str|bytes) -> str:
+def hash_password(password: str | bytes) -> str:
     """Hash a password using Argon2.
 
        :returns: hashed password

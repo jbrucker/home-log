@@ -2,14 +2,28 @@
 services:
   backend:
     build: ./backend
+    # Specifying a volume mount-binds ./backend/app (host dir) to /app/app (in container).
+    # This means that changes to code in "app" are immediately reflected in the running container.
+    # Useful for development if Dockerfile also includes the "--reload" option in CMD.
+    # This avoids mounting other directories (backend/tests, backend/experiments)
+    # in the container. 
     volumes:
-      - ./backend:/app
+      - ./backend/app:/app/app
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 
   frontend:
     build: ./frontend

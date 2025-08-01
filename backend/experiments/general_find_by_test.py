@@ -1,15 +1,14 @@
-"""Tests of the data_source_dao"""
+"""Tests of the data_source_dao."""
 
 import asyncio
 from datetime import datetime, timezone
-import logging
-import pytest, pytest_asyncio
 from app import models, schemas
 from app.data_access import data_source_dao as dao
 from app.core.database import db
 
+
 async def create_user(session, username, email) -> models.User:
-    """Fixture to inject a persisted User model"""
+    """Fixture to inject a persisted User model."""
     user = models.User(username=username, email=email)
     session.add(user)
     await session.commit()
@@ -19,7 +18,7 @@ async def create_user(session, username, email) -> models.User:
 
 async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     """Create some data sources and persist them.
-    
+
        :returns: list of id's of the created data sources
     """
     # Some interesting names
@@ -30,15 +29,15 @@ async def create_data_sources(howmany: int, owner: models.User) -> list[int]:
     day = 1
     created_ids = []
     async for session in db.get_session():
-        for n in range(1, howmany+1):
+        for n in range(1, howmany + 1):
             ds_create = schemas.DataSourceCreate(
-                name = NAMES[n%len(NAMES)].format(n),
-                description = f"The #{n} choice for data",
-                owner_id = owner.id,
+                name=NAMES[n % len(NAMES)].format(n),
+                description=f"The #{n} choice for data",
+                owner_id=owner.id,
                 unit=f"unit{n}"
                 )
             ds = models.DataSource(**ds_create.model_dump())
-            ds.created_at = datetime(year,month,day,tzinfo=timezone.utc)
+            ds.created_at = datetime(year, month, day, tzinfo=timezone.utc)
             day += 1
             session.add(ds)
             await session.commit()
@@ -59,15 +58,12 @@ async def run_get_data_sources_by_date(session, user1, user2):
     assert user2_ds_ids == [ds.id for ds in user2_ds]
     assert len(user1_ds) == 20
 
-    # DataSources ids that will match our query
-    matching_ds = []
     # Date range we will query for:
     year = 2024
     month = 3  # 3 is March
-    day = 1
     start_date = datetime(year, month, 7, tzinfo=timezone.utc)
     end_date = datetime(year, month, 10, tzinfo=timezone.utc)
-    
+
     print("Data sources for", user1)
     result = await dao.find(session, owner_id=user1.id)
     print_results(result)
@@ -75,37 +71,38 @@ async def run_get_data_sources_by_date(session, user1, user2):
     input(f"All DS created between {start_date:%d-%m-%Y} and {end_date:%d-%m-%Y}...")
     # The test:
     result = await dao.find(session,
-                                           models.DataSource.created_at >= start_date,
-                                           models.DataSource.created_at <= end_date
-                                           )
+                            models.DataSource.created_at >= start_date,
+                            models.DataSource.created_at <= end_date
+                            )
     print_results(result)
 
     end_date = datetime(year, month, 4, tzinfo=timezone.utc)
     input(f"DS owned by {user2} and created before {end_date:%d-%m-%Y}...")
     result = await dao.find(session,
-                                           models.DataSource.created_at <= end_date,
-                                           owner_id=user2.id
-                                           )
+                            models.DataSource.created_at <= end_date,
+                            owner_id=user2.id
+                            )
     print_results(result)
 
     input(f"Cars owned by {user2}...")
     result = await dao.find(session,
-                                           models.DataSource.name.contains("Car"),
-                                           owner_id=user2.id
-                                           )
+                            models.DataSource.name.contains("Car"),
+                            owner_id=user2.id
+                            )
     print_results(result)
 
 
 def print_results(result):
+    """Print them, of course."""
     for ds in result:
         print(ds)
     print()
 
 
 async def main():
+    """Make some users so we can find them in tests."""
     TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
     db.create_engine(TEST_DATABASE_URL)
-    import app.models
     await db.create_tables()
     async for session in db.get_session():
         user1 = await create_user(session, "Lord of DAO", "lordofdao@generic.org")
