@@ -57,8 +57,8 @@ async def login_json(login_data: schemas.LoginData,
                      session: Session = Depends(database.db.get_session)):
     """Authenticate user using JSON input values and return a JWT token.
 
-    :param request: PUT request containing username=value, passowrd=value
-    :returns: JSON access token. Format of body is 
+    :param request: PUT request containing username=value, password=value
+    :returns: JSON access token. Format of body is:
               {"access_token": "jwt-token-value", "token_type": "bearer" }
 
     The `grant_type` should always be `password` (the OAuth2 flow).
@@ -66,31 +66,29 @@ async def login_json(login_data: schemas.LoginData,
     content_type = request.headers.get("content-type", "").lower()
 
     if not content_type.startswith("application/json"):
-        logging.warning(f"Login failed for {email}. Content type {content_type} not supported.")
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, 
+        logging.warning(f"Login request failed. Content type {content_type} not supported.")
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                             detail="Unsupported Content-Type")
     try:
         # username field value is expected to be an email address
         email = login_data.username
         password = login_data.password
     except Exception:
-        logging.warning(f"Login failed for {email}. JSON data missing username or password.")
+        logging.warning(f"Login failed. JSON data missing username or password.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Invalid JSON body")
     access_token = await validate_login(email, password, session)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-async def validate_login(email: str, 
-                        password: str,
-                        session: Session) -> dict[str, str]:
+async def validate_login(email: str, password: str, session: Session) -> str:
     """Validate user credentials and return a JWT access token.
 
     If any errors, raises HTTPException.
     """
     if not email or not password:
         logging.warning(f"Login failed for {email}. Missing username or password.")
-        HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                       detail="Username and password may not be empty.")
     user = await user_dao.get_by_email(session, email=email)
     if not user:
