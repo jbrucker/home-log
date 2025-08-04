@@ -12,8 +12,9 @@ pwd_context = PasswordHasher()
 
 
 def hash_password(password: str | bytes) -> str:
-    """Hash a password using Argon2.
+    """Hash a password using Argon2, suitable for saving as user's password.
 
+       :param password: plain text password to hash
        :returns: hashed password
     """
     return pwd_context.hash(password)

@@ -1,6 +1,7 @@
 """Some utility functions for use in tests."""
 from datetime import datetime, timezone
 from app import models
+from app.core import security
 from app.utils import jwt
 
 # Email domain for users created by create_users()
@@ -61,6 +62,26 @@ async def create_users(session, howmany: int, email_domain: str = EMAIL_DOMAIN):
     await session.commit()
     print(f"Added {n} users")
 
+
+async def create_user(session, username: str, email: str, password: str = None):
+    """Create a user with given username, email, and optional password.
+    
+    :returns: User model with given username, email, and optional password
+    """
+    user = models.User(username=username, email=email)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    # set a password?
+    if password:
+        user_pass = models.UserPassword(
+                            user_id=user.id,
+                            hashed_password=security.hash_password(password),
+                            updated_at=datetime.now(timezone.utc)
+                            )  # noqa: E124
+        session.add(user_pass)
+        await session.commit()
+    return user
 
 async def create_data_source(session, owner: models.User = None, **data) -> models.DataSource:
     """

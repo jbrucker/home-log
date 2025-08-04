@@ -24,8 +24,9 @@
 """
 # flake8: noqa: D401 First line should be in imperative mood
 
+from typing import Generator
 import pytest, pytest_asyncio
-from fastapi.testclient import TestClient
+import fastapi.testclient
 from app.core import security
 from app.core.database import db
 # Must import models so that db.create_tables() can create the table schema
@@ -79,6 +80,13 @@ async def async_client():
     from httpx import AsyncClient
     async with AsyncClient(app=main.app) as client:
         yield client
+
+
+@pytest.fixture()
+def client(): # -> Generator[fastapi.testclient.TestClient]
+    """Test fixture for calls to FastAPI route endpoints."""
+    # main.app.dependency_overrides[get_session] = db.get_session
+    yield fastapi.testclient.TestClient(main.app)
 
 
 @pytest_asyncio.fixture()
@@ -147,10 +155,3 @@ async def ds2(session, user2: models.User) -> models.DataSource:
     await session.commit()
     await session.refresh(ds)
     return ds
-
-
-@pytest.fixture()
-def client():
-    """Test fixture for calls to FastAPI route endpoints."""
-    # main.app.dependency_overrides[get_session] = db.get_session
-    yield TestClient(main.app)
