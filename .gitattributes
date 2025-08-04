@@ -1,0 +1,6 @@
+# Auto-detect line end sequence in text files
+* text=auto
+
+# Exclude these from archives
+.gitattributes export-ignore
+.github/* export-ignore
