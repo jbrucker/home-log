@@ -69,6 +69,13 @@ class User(UserCreate):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LoginData(BaseModel):
+    """Request body for PUT or POST request to login."""
+    # RFC 5321: max length of an email address is 254 chars. See Wiki for Pydantic's limits.
+    username: EmailStr = Field(..., max_length=MAX_EMAIL)
+    password: str = Field(..., max_length=MAX_NAME)
+
+
 class DataSourceCreate(BaseModel):
     """Schema for creating a new DataSource."""
     name: str = Field(..., max_length=MAX_NAME)

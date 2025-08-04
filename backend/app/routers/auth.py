@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,7 @@ async def loginform():
 
 @router.post('/login', response_model=schemas.Token)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-          session: Session = Depends(database.db.get_session)):
+                session: Session = Depends(database.db.get_session)):
     """Authenticate user and return a JWT token for this session.
 
     :param form_data: data from login form, containing 'username' and 'password' fields
@@ -41,15 +41,58 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     try:
         email = form_data.username
         password = form_data.password
-        logging.warning(f"Login for {email} with {password}")
-        assert email is not None
-        assert password is not None
     except Exception:
+        logging.warning(f"Login failed for {email}. POST form data invalid.")
+        # Response should probably be 422 Unprocessable Entity
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Missing user email or password"
                             )
+    access_token = await validate_login(email, password, session)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.put('/login', response_model=schemas.Token)
+async def login_json(login_data: schemas.LoginData,
+                     request: Request,
+                     session: Session = Depends(database.db.get_session)):
+    """Authenticate user using JSON input values and return a JWT token.
+
+    :param request: PUT request containing username=value, password=value
+    :returns: JSON access token. Format of body is:
+              {"access_token": "jwt-token-value", "token_type": "bearer" }
+
+    The `grant_type` should always be `password` (the OAuth2 flow).
+    """
+    content_type = request.headers.get("content-type", "").lower()
+
+    if not content_type.startswith("application/json"):
+        logging.warning(f"Login request failed. Content type {content_type} not supported.")
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                            detail="Unsupported Content-Type")
+    try:
+        # username field value is expected to be an email address
+        email = login_data.username
+        password = login_data.password
+    except Exception:
+        logging.warning(f"Login failed. JSON data missing username or password.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid JSON body")
+    access_token = await validate_login(email, password, session)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+async def validate_login(email: str, password: str, session: Session) -> str:
+    """Validate user credentials and return a JWT access token.
+
+    If any errors, raises HTTPException.
+    """
+    if not email or not password:
+        logging.warning(f"Login failed for {email}. Missing username or password.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                      detail="Username and password may not be empty.")
     user = await user_dao.get_by_email(session, email=email)
     if not user:
+        logging.warning(f"Login failed for {email}. Unknown user.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Credentials",
@@ -57,20 +100,20 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
             )
     hashed_password = await user_dao.get_password(session, user)
     if not hashed_password:
+        logging.warning(f"Login failed for {email}. User has no local password.")
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User does not have local password credential",
             headers={"WWW-Authenticate": "Bearer"}
             )
-
     if not security.verify_password(hashed_password=hashed_password, plain_password=password):
+        logging.warning(f"Login failed for {email} with {password}. Invalid credentials.")
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Credentials",
             headers={"WWW-Authenticate": "Bearer"}
             )
-
     # create and return a token
     access_token = jwt.create_access_token(data={"user_id": user.id})
-
-    return {"access_token": access_token, "token_type": "bearer"}
+    logging.info(f"Login success for {email} Access token granted.")
+    return access_token
