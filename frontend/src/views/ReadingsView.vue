@@ -23,15 +23,17 @@
         <thead>
           <tr>
             <th>Timestamp</th>
-            <th>Value</th>
-            <th>Unit</th>
+            <th v-for="(unit, metric) in metrics" :key="metric">
+              {{ metric }} <small class="text-muted">({{ unit }})</small>
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="reading in readings" :key="reading.timestamp">
+          <tr v-for="reading in readings" :key="reading.id">
             <td>{{ formatDate(reading.timestamp) }}</td>
-            <td>{{ reading.value }}</td>
-            <td>{{ reading.unit }}</td>
+            <td v-for="(unit, metric) in metrics" :key="metric">
+              {{ reading.values[metric] ?? '-' }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -45,13 +47,20 @@ import { useRoute } from 'vue-router'
 import api from '@/api'
 
 interface Reading {
+  id: number
+  values: Record<string, number>
   timestamp: string
-  value: number
-  unit: string
+}
+
+interface SourceDetails {
+  id: string
+  name: string
+  metrics: Record<string, string>  // { "metric1": "unit1", "metric2": "unit2" }
 }
 
 const route = useRoute()
 const sourceName = ref('')
+const metrics = ref<Record<string, string>>({})
 const readings = ref<Reading[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -62,12 +71,13 @@ const formatDate = (timestamp: string) => {
 
 const fetchData = async () => {
   try {
-    // Fetch source details
-    const sourceResponse = await api.get(`/sources/${route.params.id}`)
+    // Fetch source details to get metrics dictionary
+    const sourceResponse = await api.get<SourceDetails>(`/sources/${route.params.id}`)
     sourceName.value = sourceResponse.data.name
+    metrics.value = sourceResponse.data.metrics
 
     // Fetch readings
-    const readingsResponse = await api.get(`/sources/${route.params.id}/readings`)
+    const readingsResponse = await api.get<Reading[]>(`/sources/${route.params.id}/readings`)
     readings.value = readingsResponse.data
   } catch (err) {
     error.value = 'Failed to load readings'
@@ -82,8 +92,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Optional: Consistent spacing with SourcesView */
-.table {
-  margin-top: 1rem;
+.table th small {
+  font-weight: normal;
 }
 </style>
