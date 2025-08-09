@@ -10,12 +10,30 @@ from app import models, schemas
 from app.data_access import data_source_dao, reading_dao
 from app.utils import oauth2
 
+"""
+AVOID TRAILING "/" in url pattern.
+If you write 
+
+@router.post("/", ...)
+
+then the full url becomes "/sources/{id}/readings/" and FastAPI will expect
+caller to include trailing "/" in URL.
+If caller does not include trailing "/" then FastAPI returns a 307 Temp Redirect
+to the URL including trailing /.
+The 307 causes the *browser* to resend the request, 
+but browser omits the Authorization header, causing a 401 Unauthorized response.
+
+Hence, for consistency with other router URLs, avoid trailing "/" by using:
+@router.post("", ...)
+
+"""
+
 router = APIRouter(prefix="/sources/{source_id}/readings", tags=["Readings"])
 
 logger = logging.getLogger(__name__)
 
 
-@router.post("/", response_model=schemas.Reading, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.Reading, status_code=status.HTTP_201_CREATED)
 async def create_reading(source_id: int,
                          reading_data: schemas.ReadingData,
                          request: Request,
@@ -52,7 +70,7 @@ async def create_reading(source_id: int,
     return result
 
 
-@router.get("/{reading_id}", response_model=schemas.Reading)
+@router.get("/{reading_id}", response_model=schemas.Reading, status_code=status.HTTP_200_OK)
 async def get_reading(source_id: int,
                       reading_id: int,
                       session: AsyncSession = Depends(db.get_session),
@@ -63,7 +81,8 @@ async def get_reading(source_id: int,
     return reading
 
 
-@router.get("/", response_model=list[schemas.ReadingDataOut])
+@router.get("", response_model=list[schemas.ReadingDataOut], 
+            status_code=status.HTTP_200_OK)
 async def get_readings(source_id: int,
                        start: str = Query(None),
                        end: str = Query(None),

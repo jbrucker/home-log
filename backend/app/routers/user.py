@@ -47,7 +47,7 @@ async def create_user(user_data: schemas.UserCreate,
     return result
 
 
-@router.get("/users/{user_id}", response_model=schemas.User)
+@router.get("/users/{user_id}", response_model=schemas.User, status_code=status.HTTP_200_OK)
 async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)) -> schemas.User:
     """Get a user with matching `user_id`."""
     user = await user_dao.get(session, user_id)
@@ -56,7 +56,7 @@ async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)
     return user  # FastAPI will use from_attributes=True to convert to schema
 
 
-@router.get("/users")
+@router.get("/users", status_code=status.HTTP_200_OK)
 async def get_users(limit: int = Query(100, ge=1, le=100),
                     offset: int = Query(0, ge=0),
                     session: AsyncSession = Depends(db.get_session),

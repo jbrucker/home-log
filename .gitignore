@@ -10,6 +10,7 @@ wiki/
 
 # unused code
 frontend/src/views.tailwind
+frontend2
 
 # dependencies
 node_modules/
@@ -27,8 +28,14 @@ coverage/
 .next/
 out/
 
+# Vite cache
+.vite/
+
 # production
 build/
+
+# build output
+dist/
 
 # misc
 .DS_Store
@@ -56,7 +63,6 @@ lerna-debug.log*
 
 # Misc
 .DS_Store
-dist
 dist-ssr
 coverage
 *.local
