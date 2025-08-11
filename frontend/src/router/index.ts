@@ -1,11 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';  // replace ".." with "@"
+import { useAuthStore } from '@/stores/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
+      name: 'default',
+      // if logged in, show user's sources otherwise show login page
+      redirect: (to) => {
+        const authStore = useAuthStore()
+        return authStore.isAuthenticated ? '/sources' : '/login'
+      }
+    },
+    {
+      path: '/home',
       name: 'home',
       component: HomeView,
       meta: { requiresAuth: true }
@@ -21,13 +31,14 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/LoginView.vue')
+      component: () => import('@/views/LoginView.vue'),
+      meta: { requiresAuth: false }
     },
     {
       path: '/sources',
       name: 'sources',
       component: () => import('@/views/SourcesView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true } // Protected route
     },
     {
       path: '/sources/:id/readings',
@@ -38,5 +49,22 @@ const router = createRouter({
     }
   ],
 });
+
+// Enhanced authentication check
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore()
+  
+  // Skip auth check for non-protected routes
+  if (!to.meta.requiresAuth) return true  // ← Better than checking route name
+  
+  // Validate token for protected routes
+  const isValid = await authStore.validateToken()
+  if (!isValid) return '/login'
+  
+  // Optional: Redirect authenticated users away from auth pages (e.g., login/register)
+  if (to.meta.redirectIfAuthenticated && authStore.isAuthenticated) {
+    return '/'  // Or your default post-login route
+  }
+})
 
 export default router;

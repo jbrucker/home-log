@@ -2,7 +2,6 @@
 
 import os
 from decouple import config
-from sqlalchemy import URL
 
 # Maximum length for some string fields in database schema
 MAX_NAME = 60       # Name of a data source may be a bit long
@@ -49,6 +48,6 @@ class Settings:
 
 # DATABASE_URL is defined in either .env or in docker-compose as an env var.
 DEV_DATABASE_URL = config("DATABASE_URL", "")
+settings = Settings(DEV_DATABASE_URL)
 
 # For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)
-settings = Settings(DEV_DATABASE_URL)

@@ -70,6 +70,7 @@ const formatDate = (timestamp: string) => {
 }
 
 const fetchData = async () => {
+  console.log("token from localStorage:", localStorage.getItem('token'))  // to verify token exists
   try {
     // Fetch source details to get metrics dictionary
     const sourceResponse = await api.get<SourceDetails>(`/sources/${route.params.id}`)
@@ -87,6 +88,7 @@ const fetchData = async () => {
 }
 
 onMounted(() => {
+  console.log("ReadingsView mounted")
   fetchData()
 })
 </script>

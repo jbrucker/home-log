@@ -3,13 +3,13 @@
 import logging
 from pathlib import Path
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Response
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import database, security
 from app.data_access import user_dao
-from app.utils import jwt
+from app.utils import jwt, oauth2
 from app import schemas
 from fastapi.responses import HTMLResponse
 
@@ -79,6 +79,45 @@ async def login_json(login_data: schemas.LoginData,
                             detail="Invalid JSON body")
     access_token = await validate_login(email, password, session)
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.put('/diyvalidate')
+async def validate_token_diy(
+                     request: Request,
+                     response: Response):
+    """Verify the the access token in the Authorization header is still valid.
+    
+    Do It Yourself implementation, w/o oauth2_schema
+    """
+    token_header: str = request.headers.get("authorization")
+    if not token_header:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Missing required Authorization header")
+    logging.info(f"Authorization: {token_header}")
+    try:
+        token = token_header.split()[-1].strip()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid Authorization header: {token_header}")
+    if jwt.verify_access_token(token):
+        response.status_code = status.HTTP_200_OK
+        return
+    # failed validation
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid authentication credentials",
+                        headers={"WWW-Authenticate": "Bearer"}
+                        )
+
+
+@router.put('/validate')
+async def validate_token(token: str = Depends(oauth2.oauth2_scheme)):
+    """Validate the access token."""
+    try:
+        return jwt.verify_access_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 async def validate_login(email: str, password: str, session: Session) -> str:
