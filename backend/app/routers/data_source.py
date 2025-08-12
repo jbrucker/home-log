@@ -18,7 +18,7 @@ from app.utils import oauth2
 router = APIRouter(tags=["Data Source"])
 
 
-@router.get("/sources")
+@router.get("/sources", status_code=status.HTTP_200_OK)
 async def get_data_sources(
                     limit: int = Query(20, ge=1, le=100),
                     offset: int = Query(0, ge=0),
@@ -35,7 +35,7 @@ async def get_data_sources(
 
 
 # TODO Add current_user and only get a source owned by current user
-@router.get("/sources/{source_id}")
+@router.get("/sources/{source_id}", status_code=status.HTTP_200_OK)
 async def get_data_source(source_id: int, session: AsyncSession = Depends(db.get_session)) -> schemas.DataSource:
     """Get a data source with the matching id."""
     result = await data_source_dao.get(session, source_id)

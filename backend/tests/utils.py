@@ -1,5 +1,6 @@
 """Some utility functions for use in tests."""
 from datetime import datetime, timezone
+from numbers import Number
 from app import models
 from app.core import security
 from app.utils import jwt
@@ -94,3 +95,9 @@ async def create_data_source(session, owner: models.User = None, **data) -> mode
     session.add(data_source)
     await session.commit()
     return data_source
+
+
+def make_reading_values(names: list[str]) -> dict[str, Number]:
+    """Create reading values for reading using a given set of keys."""
+    values = iter(range(1,1000000))
+    return { name: next(values) for name in names }

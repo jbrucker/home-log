@@ -25,7 +25,6 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
     Args:
         client: FastAPI Test client.
         alexa: Fixture providing a user entity.
-        session: Database session fixture.
     """
     data = {
         "name": "Test Source",

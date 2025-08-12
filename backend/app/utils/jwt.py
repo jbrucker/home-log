@@ -47,7 +47,6 @@ def verify_access_token(token: str) -> dict[str, Any]:
         # Check for required fields
         # user_id: str = payload.get("user_id")
         expiry = payload.get(EXPIRY)
-        print(f"{EXPIRY}: ", expiry)
     # except jose.exceptions.JWTError as ex:
     except Exception as ex:
         # includes ExpiredSignatureError, JWTClaimsError

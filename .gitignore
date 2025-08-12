@@ -1,14 +1,16 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 **/env/
 **/venv/
+# Wiki is a separate repo
 wiki/
-# editor files
-*.swp
-*.back
-*.vscode
+
 # environment variables
 .env
 .env*
+
+# unused code
+frontend/src/views.tailwind
+frontend2
 
 # dependencies
 node_modules/
@@ -26,8 +28,14 @@ coverage/
 .next/
 out/
 
+# Vite cache
+.vite/
+
 # production
 build/
+
+# build output
+dist/
 
 # misc
 .DS_Store
@@ -39,9 +47,38 @@ yarn.lock
 __pycache__/
 .docker/
 
-# log files, including npm-debug.log*, etc.
-*.log*
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Logs, including npm-debug.log*, etc.
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Misc
+.DS_Store
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor files
+*.swp
+*.back
+*.vscode
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

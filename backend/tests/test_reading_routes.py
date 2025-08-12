@@ -10,7 +10,7 @@ from app import models
 # MUST import fixtures.session to force it to be executed, even if 'session' is not injected in any tests
 from .fixtures import session
 from .fixtures import alexa, client, ds1, ds2, user1, user2
-from .utils import auth_header
+from .utils import auth_header, make_reading_values
 
 # flake8: noqa: F811 Parameter name shadows import
 
@@ -302,8 +302,3 @@ def test_delete_reading_when_not_owner(client: TestClient,
     # should be 403: user2 is authorized but does not have permission to do this
     assert delete_response.status_code == status.HTTP_403_FORBIDDEN
 
-
-def make_reading_values(names: list[str]) -> dict[str, Number]:
-    """Create reading values for a given set of keys."""
-    values = iter(range(1,1000000))
-    return { name: next(values) for name in names }
