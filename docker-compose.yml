@@ -40,7 +40,7 @@ services:
     environment:
       # POSTGRES_PASSWORD is required by the image.
       # POSTGRES_USER (postgres superuser name) and POSTGRES_DB override the defaults.
-	  # PGDATA = define database storage directory within the container (use default).
+      # PGDATA = define database storage directory within the container (use default).
       # Note: these variables have effect *only if the data directory is empty* (init setup).
       # If data directory already contains files then they have no effect.
       POSTGRES_USER: ${POSTGRES_USER}
