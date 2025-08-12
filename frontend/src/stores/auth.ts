@@ -8,7 +8,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false);
 
   const validateToken = async () => {
-    if (! token.value) {
+    if (!token.value) {
       isAuthenticated.value = false
       return false
     }
