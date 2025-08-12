@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.core import database
 from app.data_access import user_dao
+from app.routers.base import API_PREFIX
 from app.utils import oauth2
 from app import models, schemas
 
-router = APIRouter(tags=['Account'])
+router = APIRouter(prefix=API_PREFIX, tags=['Account'])
 
 
 @router.post('/account/password', status_code=status.HTTP_204_NO_CONTENT)

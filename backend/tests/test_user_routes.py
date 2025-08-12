@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 import pytest
 from app import models, schemas
 from app.data_access import user_dao
+from app.routers.base import path
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 from .fixtures import client, auth_user, session
@@ -21,7 +22,7 @@ async def test_create_user(session, auth_user: models.User, client: TestClient):
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result: Response = client.post("/users",
+    result: Response = client.post(path("/users"),
                          headers=auth_header(token),  # add authentication
                          json={"username": USER_NAME, "email": USER_EMAIL}
                         )
@@ -47,7 +48,7 @@ def test_create_user_returns_location(auth_user: models.User, client: TestClient
     USER_EMAIL = "harry@hackers.com"
     USER_NAME = "Harry Hacker"
     token = jwt.create_access_token(data={"user_id": auth_user.id}, expires=30)
-    result: Response = client.post("/users",
+    result: Response = client.post(path("/users"),
                          headers=auth_header(token),  # add authentication
                          json={"username": USER_NAME, "email": USER_EMAIL}
                         )
@@ -68,7 +69,7 @@ def test_get_user(alexa: models.User, auth_user: models.User, client: TestClient
     # add authentication?
     # the user to get
     user_id = alexa.id
-    result = client.get(f"/users/{user_id}",
+    result = client.get(path(f"/users/{user_id}"),
                         headers=auth_header(auth_user))   # auth not really required
     assert result.status_code == status.HTTP_200_OK
     # verify user data from response body
@@ -83,7 +84,7 @@ async def test_get_users_returns_max(session, auth_user: models.User, client: Te
     """Router returns up to 100 users when no limit is specified."""
     DEFAULT_LIMIT = 100
     await create_users(session, 200)
-    result = client.get("/users/", headers=auth_header(auth_user))
+    result = client.get(path("/users/"), headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
     user_data = result.json()
     assert isinstance(user_data, list)
@@ -94,7 +95,7 @@ async def test_get_users_returns_max(session, auth_user: models.User, client: Te
 async def test_get_users_with_limit(session, auth_user, client: TestClient):
     """Router returns specified number of users when limit is provided."""
     await create_users(session, 20)
-    result = client.get("/users/?limit=5", headers=auth_header(auth_user))
+    result = client.get(path("/users/?limit=5"), headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
     users_data = result.json()
     assert isinstance(users_data, list)
@@ -109,7 +110,7 @@ async def test_get_users_with_limit_and_offset(session, auth_user, client: TestC
     # get users in groups of 10. Save the ids so we can verify no repeats.
     seen_ids = []
     for offset in range(0,50,10):
-        result = client.get(f"/users/?limit=10&offset={offset}", headers=my_auth_header)
+        result = client.get(path(f"/users/?limit=10&offset={offset}"), headers=my_auth_header)
         assert result.status_code == status.HTTP_200_OK
         users_data = result.json()
         assert isinstance(users_data, list)
@@ -123,7 +124,7 @@ async def test_get_users_with_limit_and_offset(session, auth_user, client: TestC
 
     # If offset too large, then GET with offset returns an empty result
     offset = 1000
-    result = client.get(f"/users/?limit=10&offset={offset}", headers=my_auth_header)
+    result = client.get(path(f"/users/?limit=10&offset={offset}"), headers=my_auth_header)
     assert result.status_code == status.HTTP_200_OK
     users_data = result.json()
     assert isinstance(users_data, list)
@@ -135,7 +136,7 @@ async def test_get_users_with_limit_and_offset(session, auth_user, client: TestC
 async def test_get_users_unauthenticated(session, client: TestClient):
     """Unauthenticated request to get all users should be forbidden."""
     await create_users(session, 5)
-    result = client.get("/users/")
+    result = client.get(path("/users/"))
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -148,7 +149,7 @@ def test_update_user(alexa: models.User, sally: models.User, client: TestClient)
                     "username": "Jeff Bezos",
                     "email": "bezos@amazon.com"
                   }
-    response = client.put(f"/users/{user_id}",
+    response = client.put(path(f"/users/{user_id}"),
                         # add authentication
                         headers=auth_header(alexa),
                         json=update_data
@@ -169,7 +170,7 @@ def test_update_user_enforces_data_integrity(alexa: models.User, sally: models.U
                     "username": "Jeff Bezos",
                     "email": sally.email
                 }
-    response = client.put(f"/users/{user_id}",
+    response = client.put(path(f"/users/{user_id}"),
                         # add authentication
                         headers=auth_header(alexa),
                         json=update_data
@@ -184,7 +185,7 @@ def test_cannot_update_another_user(alexa, sally, client: TestClient):
                     "username": "Jeff Bezos",
                     "email": "bezos@amazon.com"
                 }
-    response = client.put(f"/users/{alexa.id}",  # the user to update
+    response = client.put(path(f"/users/{alexa.id}"),  # the user to update
                           headers=auth_header(sally),  # authenticate as someone else
                           json=update_data
                           )
@@ -195,7 +196,7 @@ def test_delete_user(alexa: models.User, auth_user: models.User, client: TestCli
     """An authorized user can delete a user. For now, any authenticated user is authorized."""
     # the user to delete
     user_id = alexa.id
-    result = client.delete(f"/users/{user_id}", headers=auth_header(auth_user))
+    result = client.delete(path(f"/users/{user_id}"), headers=auth_header(auth_user))
     # Should return HTTP 204
     assert result.status_code == status.HTTP_204_NO_CONTENT
     # user should no longer be fetchable
@@ -211,7 +212,7 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     """An unauthorized request cannot delete a user."""
     # injected user to delete
     user_id = sally.id
-    result = client.delete(f"/users/{user_id}")
+    result = client.delete(path(f"/users/{user_id}"))
     # Should be either FORBIDDEN or UNAUTHORIZED
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
     # user is still in persistent storage

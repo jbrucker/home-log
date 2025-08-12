@@ -31,7 +31,7 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
         "metrics": {"Energy": "btu"}
     }
     create_time = datetime.now(timezone.utc)
-    result = client.post("/sources/",
+    result = client.post(API_PREFIX+"/sources/",
                            headers=auth_header(alexa),
                            json=data)
     assert result.status_code == status.HTTP_201_CREATED

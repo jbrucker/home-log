@@ -84,7 +84,6 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     # Exclude some requests?
     # Use request.url.path not in ["/favicon.ico", "/health", ...]
-
     logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params}")
     logger.debug(f"Authorization: {request.headers.get('authorization','')}")
 
