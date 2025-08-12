@@ -1,4 +1,4 @@
-// Login View using bootstrap
+<!-- Login View using bootstrap -->
 <template>
   <div class="login-container">
     <div class="card">
