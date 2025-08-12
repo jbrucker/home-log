@@ -40,7 +40,6 @@ export const useAuthStore = defineStore('auth', () => {
       // alternative solution is set to empty string if value is null:
       // .setitem('token', token.value ?? '')
       localStorage.setItem('token', token.value as string);
-      console.log("auth.login: localStorage.setItem('token') =>", token.value)
       // router.push('/');
     } catch (err) {
       logout();
