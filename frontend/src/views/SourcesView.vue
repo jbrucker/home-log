@@ -47,7 +47,6 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const fetchSources = async () => {
-  console.log("token:", localStorage.getItem('token'))  // to verify token exists
   try {
     const response = await api.get('/sources')
     sources.value = response.data
