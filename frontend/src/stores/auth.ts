@@ -8,13 +8,14 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false);
 
   const validateToken = async () => {
+    // validate an access token using the backend services
     if (!token.value) {
       isAuthenticated.value = false
       return false
     }
     // verify the token is still valid
     try {
-      await api.get('/auth/validate', 
+      await api.get('/api/auth/validate', 
         { headers: { Authorization: `Bearer ${token.value}`} }
       )
       isAuthenticated.value = true
@@ -29,10 +30,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const login = async (username: string, password: string) => {
     try {
-      // Hack: backend 'POST /login' expects url-formencoded body, not JSON
+      // User credentials sent as JSON payload, so use /auth/login endpoint
       // So use PUT instead, which accepts JSON
-      // const res = await api.post('/login', { username, password });
-      const response = await api.put('/login', { username, password });
+      const response = await api.post('/api/auth/login', { username, password });
       // response body should contain {"access_token": jwt_token, "token_type": "bearer"}
       token.value = response.data.access_token;
       isAuthenticated.value = true;
