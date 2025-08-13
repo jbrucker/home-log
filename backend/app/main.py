@@ -12,7 +12,7 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import db
-from app.routers import account, auth, data_source, reading, user
+from app.routers import auth, data_source, login, reading, user
 
 # flake8: noqa: D401 First line of docstring must be imperitive.
 
@@ -72,8 +72,8 @@ app.add_middleware(
 )
 
 app.include_router(user.router)
+app.include_router(login.router)
 app.include_router(auth.router)
-app.include_router(account.router)
 app.include_router(data_source.router)
 app.include_router(reading.router)
 

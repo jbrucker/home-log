@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 import pytest
 from app import models, schemas
+from app.routers.base import path
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 # MUST import session fixture to force it to be executed, even if 'session' is not injected in any tests
@@ -31,7 +32,7 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
         "metrics": {"Energy": "btu"}
     }
     create_time = datetime.now(timezone.utc)
-    result = client.post(API_PREFIX+"/sources/",
+    result = client.post(path("/sources/"),
                            headers=auth_header(alexa),
                            json=data)
     assert result.status_code == status.HTTP_201_CREATED
@@ -51,7 +52,7 @@ def test_unauthenticated_create_data_source(client: TestClient):
         "name": "Another Test Source",
         "metrics": {"Temperature": "deg-C"}
     }
-    result = client.post("/sources/", json=data)
+    result = client.post(path("/sources/"), json=data)
     assert result.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -63,7 +64,7 @@ def test_create_data_source_always_owned_by_auth_user(alexa: models.User, sally,
     }
     # authenticate as alexa
     create_time = datetime.now(timezone.utc)
-    result = client.post("/sources/",
+    result = client.post(path("/sources/"),
                          headers=auth_header(alexa),
                          json=data)
     assert result.status_code == status.HTTP_201_CREATED
@@ -77,7 +78,7 @@ def test_create_data_source_returns_location(client: TestClient, alexa: models.U
         "name": "Test Source",
         "metrics": {"High": "degree", "Low": "degree"}
     }
-    result = client.post("/sources/",
+    result = client.post(path("/sources/"),
                            headers=auth_header(alexa),
                            json=payload)
     assert result.status_code == status.HTTP_201_CREATED
@@ -97,7 +98,7 @@ def test_update_data_source_success(alexa: models.User, client: TestClient):
     token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
     data = {"name": "Original Name", "metrics": {"weight": "lb"}, "description": "Original description"}
     response = client.post(
-        "/sources/",
+        path("/sources/"),
         headers=auth_header(alexa),
         json=data
     )
@@ -112,7 +113,7 @@ def test_update_data_source_success(alexa: models.User, client: TestClient):
         "description": "Updated description"
     }
     update_resp = client.put(
-        f"/sources/{source_id}",
+        path(f"/sources/{source_id}"),
         headers=auth_header(alexa),
         json=update_data
     )
@@ -129,7 +130,7 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
     """Fields not specified in an update request are not changed."""
     # Create a data source owned by Alexa
     orig_data = {"name": "Original Name", "description": "Original description"}
-    response = client.post("/sources/", headers=auth_header(alexa), json=orig_data)
+    response = client.post(path("/sources/"), headers=auth_header(alexa), json=orig_data)
     assert response.status_code == status.HTTP_201_CREATED
     source_id = response.json()["id"]
 
@@ -139,7 +140,7 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
                     "metrics": {"sys": "mmHg", "dia": "mmHg"}
                   }
     response = client.put(
-                    f"/sources/{source_id}",
+                    path(f"/sources/{source_id}"),
                     headers=auth_header(alexa),
                     json=update_data
                     )
@@ -157,7 +158,7 @@ def test_unuathorized_update_data_source(alexa: models.User, sally, client: Test
     """User cannot update a data source they do not own."""
     # Alexa creates a data source
     create_resp = client.post(
-                    "/sources/",
+                    path("/sources/"),
                     headers=auth_header(alexa),
                     json={"name": "Alexa's Source"}
                     )
@@ -166,7 +167,7 @@ def test_unuathorized_update_data_source(alexa: models.User, sally, client: Test
     # Sally tries to update Alexa's data source
     update_data = {"name": "Sally's Update"}
     update_resp = client.put(
-                    f"/sources/{source_id}",
+                    path(f"/sources/{source_id}"),
                     headers=auth_header(sally),
                     json=update_data
                     )
@@ -177,7 +178,7 @@ def test_update_data_source_not_found(alexa: models.User, client: TestClient):
     """Returns 404 if attempt to update a data source that does not exist."""
     update_data = {"name": "Doesn't Matter", "metrics": {"Energy": "kWh"}}
     response = client.put(
-                    "/sources/99999",
+                    path("/sources/99999"),
                     headers=auth_header(alexa),
                     json=update_data
                     )
@@ -189,7 +190,7 @@ def test_delete_data_source_success(alexa: models.User, client: TestClient):
     # Alexa creates a data source
     auth_header_alexa = auth_header(alexa)
     create_response = client.post(
-        "/sources/",
+        path("/sources/"),
         headers=auth_header_alexa,
         json={"name": "Source to Delete", "unit": "kWh"}
     )
@@ -197,11 +198,11 @@ def test_delete_data_source_success(alexa: models.User, client: TestClient):
     source_id = create_response.json()["id"]
 
     # Alexa deletes the data source
-    delete_response = client.delete(f"/sources/{source_id}", headers=auth_header_alexa)
+    delete_response = client.delete(path(f"/sources/{source_id}"), headers=auth_header_alexa)
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
 
     # Confirm it's gone
-    response = client.get(f"/sources/{source_id}", headers=auth_header_alexa)
+    response = client.get(path(f"/sources/{source_id}"), headers=auth_header_alexa)
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -209,27 +210,27 @@ def test_delete_data_source_unauthorized(alexa: models.User, sally, client: Test
     """User cannot delete a data source they do not own."""
     # Alexa creates a data source
     create_resp = client.post(
-        "/sources/",
+        path("/sources/"),
         headers=auth_header(alexa),
         json={"name": "Alexa's Source", "unit": "kWh"}
     )
     source_id = create_resp.json()["id"]
 
     # Sally tries to delete Alexa's data source
-    delete_resp = client.delete(f"/sources/{source_id}", headers=auth_header(sally))
+    delete_resp = client.delete(path(f"/sources/{source_id}"), headers=auth_header(sally))
     assert delete_resp.status_code == status.HTTP_403_FORBIDDEN
     # Confirm source is still there
-    response = client.get(f"/sources/{source_id}", headers=auth_header(alexa))
+    response = client.get(path(f"/sources/{source_id}"), headers=auth_header(alexa))
     assert response.status_code == status.HTTP_200_OK
 
 
 def test_delete_data_source_not_found(alexa: models.User, client: TestClient):
     """Returns 404 if attempt to delete a data source that does not exist."""
-    delete_resp = client.delete("/sources/99999", headers=auth_header(alexa))
+    delete_resp = client.delete(path("/sources/99999"), headers=auth_header(alexa))
     assert delete_resp.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_delete_data_source_unauthenticated(client: TestClient):
     """Cannot delete a data source without authentication."""
-    delete_resp = client.delete("/sources/1")
+    delete_resp = client.delete(path("/sources/1"))
     assert delete_resp.status_code == status.HTTP_401_UNAUTHORIZED

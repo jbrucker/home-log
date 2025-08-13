@@ -35,7 +35,7 @@ async def test_create_user(session, auth_user: models.User, client: TestClient):
     assert user is not None
     assert user.username == USER_NAME
     # cannot add another user with same email
-    result = client.post("/users",
+    result = client.post(path("/users"),
                          headers=auth_header(token),
                          json={"username": "Jone", "email": USER_EMAIL}
                         )
@@ -220,5 +220,5 @@ async def test_unauthenticated_delete_user(session, sally, auth_user, client: Te
     assert user is not None, f"Unauthorized delete request deleted user {str(sally)}"
     assert user.id == user_id, f"Unauthorized delete request changed user id of {str(sally)}"
     # user should still be GET-able
-    result = client.get(f"/users/{user_id}", headers=auth_header(auth_user))
+    result = client.get(path(f"/users/{user_id}"), headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK

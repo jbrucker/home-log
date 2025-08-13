@@ -20,7 +20,7 @@ from app.utils import oauth2
 router = APIRouter(prefix=API_PREFIX, tags=["Users"]) 
 
 
-@router.post(path("/users"), status_code=status.HTTP_201_CREATED, response_model=schemas.User)
+@router.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.User)
 async def create_user(user_data: schemas.UserCreate,
                         request: Request,
                         response: Response,
@@ -48,7 +48,7 @@ async def create_user(user_data: schemas.UserCreate,
     return result
 
 
-@router.get(path("/users/{user_id}"), response_model=schemas.User, status_code=status.HTTP_200_OK)
+@router.get("/users/{user_id}", response_model=schemas.User, status_code=status.HTTP_200_OK)
 async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)) -> schemas.User:
     """Get a user with matching `user_id`."""
     user = await user_dao.get(session, user_id)
@@ -57,7 +57,7 @@ async def get_user(user_id: int, session: AsyncSession = Depends(db.get_session)
     return user  # FastAPI will use from_attributes=True to convert to schema
 
 
-@router.get(path("/users"), status_code=status.HTTP_200_OK)
+@router.get("/users", status_code=status.HTTP_200_OK)
 async def get_users(limit: int = Query(100, ge=1, le=100),
                     offset: int = Query(0, ge=0),
                     session: AsyncSession = Depends(db.get_session),
@@ -73,7 +73,7 @@ async def get_users(limit: int = Query(100, ge=1, le=100),
     return users
 
 
-@router.put(path("/users/{user_id}"), status_code=status.HTTP_200_OK, response_model=schemas.User)
+@router.put("/users/{user_id}", status_code=status.HTTP_200_OK, response_model=schemas.User)
 async def update_user(user_id: int, 
                       user_data: schemas.UserCreate, 
                       session: AsyncSession = Depends(db.get_session),
@@ -102,7 +102,7 @@ async def update_user(user_id: int,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
 
-@router.delete(path("/users/{user_id}"), status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(user_id: int, 
                       session: AsyncSession = Depends(db.get_session),
                       current_user = Depends(oauth2.get_current_user)):

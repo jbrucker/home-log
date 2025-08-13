@@ -11,6 +11,7 @@ from fastapi import Response, status
 from fastapi.testclient import TestClient
 import pytest
 from app.data_access import user_dao
+from app.routers.base import path
 # VS Code thinks these fixtures are unused, but they are used & necessary.
 from .fixtures import client, auth_user, session
 from .utils import create_user
@@ -27,7 +28,7 @@ async def test_post_login(session, client: TestClient):
     password = "Sufficently*Strong?"
     user = await create_user(session, username, email, password)
     # Is user on server-side now?
-    response: Response = client.get(f"/users/{user.id}")
+    response: Response = client.get(path(f"/users/{user.id}"))
     assert response.status_code == status.HTTP_200_OK
     # Does user have a password?
     hashed_password = await user_dao.get_password(session, user.id)
@@ -84,16 +85,17 @@ async def test_post_login_invalid_credentials(session, client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_put_login(session, client: TestClient):
-    """User can login using PUT request and JSON form request body (hack, hack)."""
+async def test_json_login(session, client: TestClient):
+    """User can login using POST request and JSON form request body (hack, hack)."""
     # Need a user with known password
     username = "Jose Hacker"
     email = "jose@hackerone.com"
     password = "Sufficently*Strong?"
     user = await create_user(session, username, email, password)
-    # Can we login now?
-    response: Response = client.put(
-                        "/login",
+    # Use the REST API endpoint for login, not html form handler.
+    url = path("/auth/login")
+    response: Response = client.post(
+                        url,
                         json={"username": email, "password": password}
                         )
     assert response.status_code == status.HTTP_200_OK
@@ -103,17 +105,18 @@ async def test_put_login(session, client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_put_invalid_login(session, client: TestClient):
-    """User cannot login via PUT with invalid username or password."""
+async def test_invalid_login(session, client: TestClient):
+    """User cannot authenticate via REST API with invalid username or password."""
     # Need a user with known password
     username = "Jose Hacker"
     email = "jose@hackerone.com"
     password = "Sufficently*Strong?"
     user = await create_user(session, username, email, password)
     # Try invalid username values
+    login_url = path("/auth/login")
     for bad_username in ["unknown@nowhere.com", "jose", ""]:
-        response: Response = client.put(
-                        "/login",
+        response: Response = client.post(
+                        login_url,
                         json={"username": bad_username, "password": password}
                         )
         # Response depends on whether "username" is a syntactically valid email address
@@ -123,21 +126,21 @@ async def test_put_invalid_login(session, client: TestClient):
             assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, f"username = {bad_username}"
     # Try invalid password
     bad_password = "FatChance!"
-    response: Response = client.put(
-                        "/login",
+    response: Response = client.post(
+                        login_url,
                         json={"username": email, "password": bad_password}
                         )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED, f'using password "{bad_password}"'
     # Empty password - should return 401
     ad_password = ""
-    response: Response = client.put(
-                        "/login",
+    response: Response = client.post(
+                        login_url,
                         json={"username": email, "password": bad_password}
                         )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     # Omit password entirely
-    response: Response = client.put(
-                        "/login",
+    response: Response = client.post(
+                        login_url,
                         json={"username": email}
                         )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, "Omitted password"
