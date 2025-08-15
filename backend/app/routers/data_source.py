@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import schemas
 from app.data_access import data_source_dao, user_dao
+from app.routers.base import API_PREFIX
 from app.utils import oauth2
 
 # add option prefix="/source" to factor out path prefix.
-router = APIRouter(tags=["Data Source"])
+router = APIRouter(prefix=API_PREFIX, tags=["Data Source"])
 
 
 @router.get("/sources", status_code=status.HTTP_200_OK)

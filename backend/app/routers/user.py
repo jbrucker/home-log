@@ -13,10 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import schemas
 from app.data_access import user_dao
+from app.routers.base import API_PREFIX, path
 from app.utils import oauth2
 
 # can add prefix="/users" option to factor out path prefix. I prefer explicit path for readability.
-router = APIRouter(tags=["Users"]) 
+router = APIRouter(prefix=API_PREFIX, tags=["Users"]) 
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.User)

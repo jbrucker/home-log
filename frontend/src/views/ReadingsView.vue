@@ -72,12 +72,12 @@ const formatDate = (timestamp: string) => {
 const fetchData = async () => {
   try {
     // Fetch source details to get metrics dictionary
-    const sourceResponse = await api.get<SourceDetails>(`/sources/${route.params.id}`)
+    const sourceResponse = await api.get<SourceDetails>(`/api/sources/${route.params.id}`)
     sourceName.value = sourceResponse.data.name
     metrics.value = sourceResponse.data.metrics
 
     // Fetch readings
-    const readingsResponse = await api.get<Reading[]>(`/sources/${route.params.id}/readings`)
+    const readingsResponse = await api.get<Reading[]>(`/api/sources/${route.params.id}/readings`)
     readings.value = readingsResponse.data
   } catch (err) {
     error.value = 'Failed to load readings'

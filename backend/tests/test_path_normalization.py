@@ -9,6 +9,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 import pytest
 from app import main, models
+from app.routers.base import path
 # MUST import fixtures.session to force it to be executed, even if 'session' is not injected in any tests
 from .fixtures import session
 from .fixtures import alexa, ds1, ds2, user1, user2
@@ -29,7 +30,7 @@ def reading_url(source_id: int, reading_id: int = None) -> str:
     url = f"/sources/{source_id}/readings"
     if reading_id:
         url += f"/{reading_id}"
-    return url
+    return path(url)
 
 
 def test_create_reading_location_does_not_end_with_slash(
@@ -115,7 +116,8 @@ def test_create_data_source_location_does_not_end_with_slash(user1: models.User,
         "metrics": {"Energy": "Astrophage"}
     }
     create_time = datetime.now(timezone.utc)
-    response = client.post("/sources/",
+    url = path("/sources/")
+    response = client.post(url,
                            headers=auth_header(user1),
                            json=data)
     assert response.status_code == status.HTTP_201_CREATED
@@ -131,9 +133,9 @@ def test_get_data_source_path(client: TestClient,
 
     This test assumes ds1 is owned by user1.
     """
-    url = f"/sources/{ds1.id}"
+    url = path(f"/sources/{ds1.id}")
     response = client.get(url, headers=auth_header(user1))
     assert response.status_code == status.HTTP_200_OK, f"Failed to get {url}"
-    url = f"/sources/{ds1.id}/"
+    url += "/"
     response = client.get(url, headers=auth_header(user1))
     assert response.status_code == status.HTTP_200_OK, f"Failed to get {url}"
