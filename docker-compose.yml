@@ -1,14 +1,18 @@
 # version: '3.9'
 services:
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+      pull: false
+    image: homelog-backend
     # A volume mount-binds ./backend/app (host dir) to /app/app (in container).
     # This means that changes to code in "app" are immediately reflected in the 
     # running container.
     # Useful for development if 'CMD' also includes the "--reload" option.
     # This avoids mounting other directories (backend/tests, backend/experiments)
     # in the container. 
-    # For production, you want to remove this.
+    # For production, remove this.
     volumes:
       - ./backend/app:/app/app
     ports:
@@ -28,11 +32,17 @@ services:
 
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      pull: false    # Use cache instead
+    image: homelog-frontend
     volumes:
       - ./frontend:/app
     ports:
-      - "3000:3000"
+      - "8080:8080"
+    depends_on:
+      - backend
 
   db:
     image: postgres:16     # Use PostgreSQL 16 for UUIDv7 support
