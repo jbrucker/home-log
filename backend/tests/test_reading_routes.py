@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from fastapi import status
 from fastapi.testclient import TestClient
 from app import models
+from app.routers.base import path
 # MUST import fixtures.session to force it to be executed, even if 'session' is not injected in any tests
 from .fixtures import session
 from .fixtures import alexa, client, ds1, ds2, user1, user2
@@ -17,7 +18,7 @@ from .utils import auth_header, make_reading_values
 
 def reading_url(source_id: int, reading_id: int = None) -> str:
     """Construct the URL for a reading route endpoint."""
-    url = f"/sources/{source_id}/readings"
+    url = path(f"/sources/{source_id}/readings")
     if reading_id:
         url += f"/{reading_id}"
     return url

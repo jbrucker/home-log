@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import db
 from app import models, schemas
 from app.data_access import data_source_dao, reading_dao
+from app.routers.base import API_PREFIX
 from app.utils import oauth2
 
 """
@@ -25,10 +26,9 @@ but browser omits the Authorization header, causing a 401 Unauthorized response.
 
 Hence, for consistency with other router URLs, avoid trailing "/" by using:
 @router.post("", ...)
-
 """
 
-router = APIRouter(prefix="/sources/{source_id}/readings", tags=["Readings"])
+router = APIRouter(prefix=API_PREFIX+"/sources/{source_id}/readings", tags=["Readings"])  # noqa: E226
 
 logger = logging.getLogger(__name__)
 

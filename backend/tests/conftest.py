@@ -65,6 +65,6 @@ def pytest_sessionstart(session):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Runs once after all tests."""
+    """Run once after all tests."""
     event_log("Run pytest_sessionfinish(session)")
     logging.getLogger(__name__).info("Run pytest_sessionfinish(session)")

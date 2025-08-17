@@ -48,7 +48,7 @@ const error = ref<string | null>(null)
 
 const fetchSources = async () => {
   try {
-    const response = await api.get('/sources')
+    const response = await api.get('/api/sources')
     sources.value = response.data
   } catch (err) {
     error.value = 'Failed to load data sources'
