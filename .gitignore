@@ -10,6 +10,7 @@ wiki/
 
 # unused code
 frontend/src/views.tailwind
+frontend.vite
 frontend2
 
 # dependencies
