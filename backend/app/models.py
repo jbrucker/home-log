@@ -25,13 +25,14 @@ To initialize the table schema in a new database, use code like:
 ```
 """
 
-# Integer and TIMESTAMP are convenience classes for sqlalchemy.sql.sqltypes.{name}
 from datetime import datetime, timezone
 from typing import Any
-from sqlalchemy import Boolean, ForeignKey, Identity, Integer, JSON, String, TIMESTAMP
+from sqlalchemy import Boolean, ForeignKey, Identity, JSON, String
+# Integer and TIMESTAMP are aliases for sqlalchemy.sql.sqltypes.{name}
+from sqlalchemy import Integer, TIMESTAMP
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-# If using UUID for keys add these:
+# If using UUID for keys, then add these:
 # from sqlalchemy.dialects.postgresql import UUID
 # from uuid import UUID, uuid4
 
@@ -47,13 +48,16 @@ def utcnow() -> datetime:
 
 
 class User(Base):
-    """Model for a User than can own DataSources."""
+    """Model for a User who can own DataSources."""
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer,
                                     Identity(always=False),
                                     primary_key=True
                                     )
-    email: Mapped[str] = mapped_column(String(MAX_EMAIL), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(MAX_EMAIL), 
+                                    unique=True, 
+                                    nullable=False
+                                    )
     username: Mapped[str] = mapped_column(String(MAX_NAME))
     created_at: Mapped[datetime] = mapped_column(
                                     TIMESTAMP(timezone=True),
