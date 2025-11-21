@@ -1,23 +1,25 @@
 # Unversioned requirements for initial development.
-fastapi
-uvicorn[standard]
-sqlalchemy[asyncio]
 asyncpg
+fastapi
 python-decouple
 pydantic[email]
-# Password hashing and hash verification is used in ./app/core/security.py
+sqlalchemy[asyncio]
+uvicorn[standard]
+# python-multipart is needed to handle form data, such as a login form
+python-multipart
+# For time-based UUIDs so that appends are chrono ordered uuid v7
+# uuid7
+# Password hashing and hash verification is done in ./app/core/security.py
 # For Argon2 hashes you can use either argon2-cffi or passlib[argon2].
-# passlib is just a wrapper for argon2-cffi and requires it.
+# passlib[argon2] is just a wrapper for argon2-cffi and requires it.
 # Hence, for simplicity & current updates, I use argon2-cffi directly.
-#
-# If you want a consistent interface to multiple hashing algorithms
-# (like bcrypt), use: passlib[argon2] and/or passlib[bcrypt] 
 # argon2-cffi automatically also installs argon2-cffi-bindings
 argon2-cffi
+ 
+# If you prefer a consistent interface to multiple hashing algorithms
+# (like bcrypt), use passlib[argon2] and/or passlib[bcrypt]
 # passlib[argon2]
 # passlib[bcrypt]
+
 # jose provides JWT utilities.
 python-jose[cryptography]
-# python-multipart is needed to handle form data, like a username/password form
-python-multipart
-# uuid7

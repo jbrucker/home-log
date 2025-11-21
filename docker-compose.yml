@@ -2,13 +2,13 @@
 services:
   backend:
     build: ./backend
-    # A volume mount-binds ./backend/app (host dir) to /app/app (in container).
+    # A volume mount-binds ./backend/app (on host) to /app/app (in container).
     # This means that changes to code in "app" are immediately reflected in the 
     # running container.
     # Useful for development if 'CMD' also includes the "--reload" option.
     # This avoids mounting other directories (backend/tests, backend/experiments)
     # in the container. 
-    # For production, you want to remove this.
+    # For production, you should remove this.
     volumes:
       - ./backend/app:/app/app
     ports:
@@ -26,8 +26,16 @@ services:
       timeout: 5s
       retries: 3
 
+  nginx-exporter:
+    # Export server metrics for monitoring via Prometheus
+    image: nginx/nginx-prometheus-exporter
+    ports:
+       - "9113:9113"
+    command:
+       - '-nginx.scrape-uri=http://webapp:8000/nginx-status'
 
   frontend:
+    # Web front-end using Vue.js
     build: ./frontend
     volumes:
       - ./frontend:/app
@@ -35,11 +43,12 @@ services:
       - "3000:3000"
 
   db:
-    image: postgres:16     # Use PostgreSQL 16 for UUIDv7 support
+    # Use PostgreSQL 16+ for UUIDv7 support
+    image: postgres:16     
     restart: unless-stopped
     environment:
       # POSTGRES_PASSWORD is required by the image.
-      # POSTGRES_USER (postgres superuser name) and POSTGRES_DB override the defaults.
+      # POSTGRES_USER (superuser name) and POSTGRES_DB override the defaults.
       # PGDATA = define database storage directory within the container (use default).
       # Note: these variables have effect *only if the data directory is empty* (init setup).
       # If data directory already contains files then they have no effect.

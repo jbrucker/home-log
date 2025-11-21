@@ -31,26 +31,28 @@ See "Deployment" page in wiki.
 
 1. Start the "db" service:
    ```bash
-   docker compose up -d db
-   ```
-   or start with dependencies:
-   ```bash
-   docker compose up -d db init-script
+   docker compose up
    ```
 2. Verify it's running:
    ```bash
    docker ps
    ```
-3. Interact with it:
+   Output should show *two* running processes (db and backend)
+3. Interact with the database:
    - `pgsql` command line
    - Database browser such as DBeaver
+   - connect to Postgres port 5432
 
-5. Stop it, using id prefix or container name.
+5. Stop the containers:
+   ```bash
+   docker compose stop
+   ```
+   Stop a specific container, using id prefix or container name.
    ```bash
    docker container ls
    docker stop [ a1b2c3d4 | homelog-db-1 ]
    ```
-6. View log files (specify container name)
+6. View log files. Specify container name.
    ```bash
    docker logs homelog-db-1
    ```
@@ -62,9 +64,13 @@ See "Deployment" page in wiki.
 
 The environment variables used in both Python code and docker-compose are in file `.env`.
 
-- Start the container
+- Start the "db" container
   ```
   docker-compose up -d db
+  ```
+  or start with dependencies:
+  ```bash
+  docker compose up -d db init-script
   ```
 - Other compose commands to know:
   | Command                | Meaning                     |

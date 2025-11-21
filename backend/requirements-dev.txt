@@ -13,5 +13,12 @@ flake8-docstrings
 # Brutal type checking
 mypy
 
+# pre-commit defines and manages Git hooks scripts. See pre-commit.com.
+# Configuration is done in the file .pre-commit-config.yaml
+# Too much Bloatware! pre-commit installs these packages
+# cfgv distlib filelock identify5 nodeenv platformdirs pre-commit virtualenv
+# (and requires many others already in my virtual env)
+# pre-commit
+
 # Needed only for establishing a synchronous database connection to Postgres.
 # Needed to run the app/utils/sqlite2postgres.py script.

@@ -17,12 +17,15 @@ Or invoke the `runserver.sh` script.
 
 ### Test Accounts
 
-| username | email            | password |
-|----------|------------------|----------|
-| Jim      |jim@hackers.com   | Hackme2  |
-| Harry    |harry@hackers.com | Hackme2  | 
-| Sally    |sally@hackers.com | Hackme2  |
-| admin    |admin@localhost.com | MakeMyDay |
+When using the REST API (e.g. `http://localhost:8000/docs`), the **login** name is the **email address** not the username.
+
+| username | email            | password | id (maybe) |
+|----------|------------------|----------|------------|
+| Jim      |jim@hackers.com   | Hackme2  | 1          |
+| Harry    |harry@hackers.com | Hackme2  | 2          |
+| Sally    |sally@hackers.com | Hackme2  | 3          |
+| admin    |admin@localhost.com | MakeMyDay | 7       |
+| Barrack  |obama@whitehouse.gov| ?         | 8       |
 
 
 ## VS Code Configuration
@@ -47,24 +50,36 @@ without setting `PYTHONPATH` I was getting module not found errors for `app`, ev
 
 ### How to Run
 
-1. (Optional) Initialize the database with Alembic:
-   ```bash
-   alembic upgrade head
-   ```
+### Prerequisite: Start Database Server
 
-2. Start FastAPI:
+This app normally uses Postgresql. To start the server in a container, at the top level directory enter:
+```bash
+docker compose up -d db
+# verify it is running. Output should show "homelog-db-1" process.
+docker compose ps
+```
+
+(Optional, 1 time) Initialize the database with Alembic:
+```bash
+alembic upgrade head
+```
+
+### Start the REST API server
+
+1. Start FastAPI:
    ```bash
    uvicorn app.main:app --reload
    ```
-4. Get a user (assuming database has some seed data):
+   
+2. Access the docs:
+   - OpenAPI: `http://localhost:8000/docs`
+   - Redoc: `http://localhost:8000/redoc`
+
+3. Get a user (assuming database contains some user data):
    ```
    curl http://localhost:8000/users/1
    ```
    should display JSON for user with id 1.
-   
-3. Access docs:
-   - OpenAPI: `http://localhost:8000/docs`
-   - Redoc: `http://localhost:8000/redoc`
 
 
 ---
