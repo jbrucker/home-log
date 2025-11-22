@@ -11,6 +11,9 @@ from contextlib import asynccontextmanager
 import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
+# For custom metrics
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram, Gauge
 from app.core.database import db
 from app.routers import auth, data_source, login, reading, user
 
@@ -38,6 +41,13 @@ async def lifecycle(app: FastAPI):
     logger.info("Finishing lifecycle(app). Shutting down...")
 
 
+# redirect_slashes=False disables automatic redirects in case of missing trailing "/"
+app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
+
+# Instrument for Prometheus using pre-defined metrics
+instrumenter = Instrumentator().add(app)
+
+# Required: attach instrumentor
 # Optional: initialize schema on startup
 # Deprecated: @app.on_event("startup")
 async def on_startup():
@@ -49,10 +59,9 @@ async def on_startup():
         # logger.info("Creating DataSource table")
         # await connection.run_sync(models.DataSource.__table__.create, checkfirst=True)
         pass
+    # for Prometheus
+    instrumenter.expose(app)
 
-
-# redirect_slashes=False disables automatic redirects in case of missing trailing "/"
-app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
 
 # Add middleware for CORS support
 origins = [
@@ -111,3 +120,49 @@ async def strip_trailing_slash(request: Request, call_next):
     if request.url.path.endswith("/") and request.url.path != "/":
         request.scope["path"] = request.url.path.rstrip("/")
     return await call_next(request)
+
+# Additional metrics for Prometheus
+# Define metrics
+REQUEST_COUNT = Counter(
+    'http_requests_total',
+    'Total HTTP Requests',
+    ['method', 'endpoint', 'status_code']
+)
+
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds',
+    'HTTP Request Latency',
+    ['method', 'endpoint']
+)
+
+IN_PROGRESS = Gauge(
+    'http_requests_in_progress',
+    'HTTP Requests in Progress',
+    ['method', 'endpoint']
+)
+
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    method = request.method
+    endpoint = request.url.path
+    
+    # Skip metrics endpoint
+    if endpoint == "/metrics":
+        return await call_next(request)
+    
+    IN_PROGRESS.labels(method=method, endpoint=endpoint).inc()
+    start_time = time.time()
+    
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception as e:
+        status_code = 500
+        raise e
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=status_code).inc()
+        IN_PROGRESS.labels(method=method, endpoint=endpoint).dec()
+    
+    return response
