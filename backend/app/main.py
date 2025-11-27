@@ -8,25 +8,25 @@
 
 import logging
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
 import time
-from fastapi import FastAPI, Request
+import uuid
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 # For custom metrics
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge
 from app.core.database import db
-from app.routers import auth, data_source, login, reading, user
+from app.routers import auth, data_source, health, login, reading, user
 
 # flake8: noqa: D401 First line of docstring must be imperitive.
 
+console_handler = logging.StreamHandler()
 # Initialize log format
 logging.basicConfig(
     level=logging.DEBUG,
-    format="\033[32m%(levelname)s\033[0m: %(module)s.%(name)s \033[35m%(message)s\033[0m",
-    handlers=[
-        logging.FileHandler("backend.log", mode="w"),  # "w" = OVERWRITE
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s %(levelname)s %(module)s.%(name)s: %(message)s",
+    handlers=[console_handler]
 )
 logger = logging.getLogger("main")
 logger.info(f"Database URL is {str(db.engine.url)}")
@@ -35,7 +35,7 @@ logger.info(f"Database URL is {str(db.engine.url)}")
 @asynccontextmanager
 async def lifecycle(app: FastAPI):
     """Perform FastAPI lifecycle event hook for start-up and shutdown."""
-    logger.info("Executing lifecycle(app). Invoke on_startup()...")
+    logger.info("Starting lifecycle(app). Invoke on_startup()...")
     await on_startup()
     yield
     logger.info("Finishing lifecycle(app). Shutting down...")
@@ -45,9 +45,47 @@ async def lifecycle(app: FastAPI):
 app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
 
 # Instrument for Prometheus using pre-defined metrics
-instrumenter = Instrumentator().add(app)
+# Prefer instrument() + expose() to ensure custom metrics registered before expose
+instrumenter = Instrumentator(
+    should_group_status_codes=True,  # optionally group 2xx/4xx/5xx
+    should_ignore_untemplated=True   # avoid high-cardinality paths where available
+)
+# Attach Instrumentator before the app starts
+logger.info("Instrumenting app for Prometheus")
+instrumenter.instrument(app)
+instrumenter.expose(app, include_in_schema=False)
+logger.info("Done instrumenting app")
 
-# Required: attach instrumentor
+
+# Additional metrics for Prometheus
+# Define metrics
+REQUEST_COUNT = Counter(
+    'http_requests_total',
+    'Total HTTP Requests',
+    ['method', 'endpoint', 'status_code']
+)
+
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds',
+    'HTTP Request Latency (sec)',
+    ['method', 'endpoint'],
+    # tunable buckets for web latency (seconds)
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10]
+)
+
+IN_PROGRESS = Gauge(
+    'http_requests_in_progress',
+    'HTTP Requests in Progress',
+    ['method', 'endpoint']
+)
+
+EXCEPTIONS = Counter(
+    'http_request_exceptions_total',
+    'Total exceptions during request processing',
+    ['method', 'endpoint', 'exception_type']
+)
+
+
 # Optional: initialize schema on startup
 # Deprecated: @app.on_event("startup")
 async def on_startup():
@@ -59,13 +97,112 @@ async def on_startup():
         # logger.info("Creating DataSource table")
         # await connection.run_sync(models.DataSource.__table__.create, checkfirst=True)
         pass
-    # for Prometheus
-    instrumenter.expose(app)
+
+# Middleware order: normalize first, then monitoring, then logging
+
+@app.middleware("http")
+async def strip_trailing_slash(request: Request, call_next):
+    """Remove trailing / from URLs for consistency."""
+    if request.url.path.endswith("/") and request.url.path != "/":
+        request.scope["path"] = request.url.path.rstrip("/")
+    return await call_next(request)
 
 
-# Add middleware for CORS support
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    """Collect Prometheus metrics.
+
+      Request count and latency by endpoint, method, & status code.
+      Exceptions by endpoint and method.
+      - endpoint: use route template when available (reduces cardinality)
+      - method: use request.method
+      - status_code: as string
+    """
+    endpoint = request.url.path
+    
+    # Skip metrics endpoint
+    if endpoint.startswith("/metrics"):
+        return await call_next(request)
+    
+    method = request.method.upper()
+    # Prefer route template over request path if available 
+    # This avoids endpoint explosion in metrics
+    route = request.scope.get("route")
+    try:
+        if route is not None:
+            endpoint = route.path 
+    except Exception:
+        # use endpoint = request.url.path
+        endpoint = request.url.path
+
+    # Avoid extremely long endpoint labels
+    MAX_ENDPOINT_LENGTH = 200
+    if len(endpoint) > MAX_ENDPOINT_LENGTH:
+        endpoint = endpoint[:MAX_ENDPOINT_LENGTH]
+
+    IN_PROGRESS.labels(method=method, endpoint=endpoint).inc()
+    # time.perf_counter() is higher resolution than time.time()
+    start_time = time.perf_counter()
+    
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+    except Exception as ex:
+        EXCEPTIONS.labels(method=method, endpoint=endpoint, exception_type=ex.__class__.__name__).inc()
+        status_code = 500
+        # Re-raise exception so FastAPI can handle it
+        raise
+    finally:
+        latency = time.perf_counter() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=str(status_code)).inc()
+        IN_PROGRESS.labels(method=method, endpoint=endpoint).dec()
+    
+    return response
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Custom logging includes auth headers, or whatever.
+    
+       - Add a request id header if not provided
+       - Mask sensitive headers such as authentication
+       - Log after response to include status/time
+    """
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    auth = request.headers.get("authorization")
+
+    # Attach req_id to scope so downstream handlers can use it (and to response)
+    request.state.request_id = req_id
+    start_time = time.perf_counter()
+    # Exclude some requests?
+    # Use request.url.path not in ["/favicon.ico", "/health", ...]
+    logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params} req_id={req_id}")
+    logger.debug(f"Authorization: {request.headers.get('authorization','')}")
+
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.error(f"Request failed (req_id={req_id}): {str(e)}")
+        raise
+
+    # Calculate response time in milliseconds
+    process_time = (time.perf_counter() - start_time) * 1000
+
+    # Log response
+    logger.info(
+        f"Response: {request.method} {request.url.path} "
+        f"{response.status_code} {process_time:.2f}ms"
+        f"| req_id={req_id}"
+    )
+    if isinstance(response, Response):
+        response.headers["X-Request-ID"] = req_id
+    return response
+
+
+# Middleware for CORS support
 origins = [
-    "http://localhost:5173",  # Vue dev server
+    "http://localhost:5173",   # Vue dev server
     "http://www.homelog.com",  # Production server
     "http://localhost:8000"
     ]
@@ -80,89 +217,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Finally, register routers
+app.include_router(health.router)
 app.include_router(user.router)
 app.include_router(login.router)
 app.include_router(auth.router)
 app.include_router(data_source.router)
 app.include_router(reading.router)
-
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Custom logging includes auth headers, or whatever."""
-    start_time = time.time()
-    # Exclude some requests?
-    # Use request.url.path not in ["/favicon.ico", "/health", ...]
-    logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params}")
-    logger.debug(f"Authorization: {request.headers.get('authorization','')}")
-
-    try:
-        response = await call_next(request)
-    except Exception as e:
-        logger.error(f"Request failed: {str(e)}")
-        raise
-
-    # Calculate response time
-    process_time = (time.time() - start_time) * 1000
-    formatted_time = f"{process_time:.2f}ms"
-
-    # Log response
-    logger.info(
-        f"Response: {request.method} {request.url.path} "
-        f"| Status {response.status_code} "
-        f"| Time {formatted_time}"
-    )
-    return response
-
-@app.middleware("http")
-async def strip_trailing_slash(request: Request, call_next):
-    """Remove trailing / from URLs for consistency."""
-    if request.url.path.endswith("/") and request.url.path != "/":
-        request.scope["path"] = request.url.path.rstrip("/")
-    return await call_next(request)
-
-# Additional metrics for Prometheus
-# Define metrics
-REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP Requests',
-    ['method', 'endpoint', 'status_code']
-)
-
-REQUEST_LATENCY = Histogram(
-    'http_request_duration_seconds',
-    'HTTP Request Latency',
-    ['method', 'endpoint']
-)
-
-IN_PROGRESS = Gauge(
-    'http_requests_in_progress',
-    'HTTP Requests in Progress',
-    ['method', 'endpoint']
-)
-
-@app.middleware("http")
-async def monitor_requests(request: Request, call_next):
-    method = request.method
-    endpoint = request.url.path
-    
-    # Skip metrics endpoint
-    if endpoint == "/metrics":
-        return await call_next(request)
-    
-    IN_PROGRESS.labels(method=method, endpoint=endpoint).inc()
-    start_time = time.time()
-    
-    try:
-        response = await call_next(request)
-        status_code = response.status_code
-    except Exception as e:
-        status_code = 500
-        raise e
-    finally:
-        latency = time.time() - start_time
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=status_code).inc()
-        IN_PROGRESS.labels(method=method, endpoint=endpoint).dec()
-    
-    return response

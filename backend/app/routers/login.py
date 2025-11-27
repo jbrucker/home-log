@@ -58,8 +58,10 @@ async def validate_login(email: str, password: str, session: Session) -> str:
     """
     if not email or not password:
         logging.warning(f"Login failed for {email}. Missing username or password.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                      detail="Username and password may not be empty.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password may not be empty."
+            )
     user = await user_dao.get_by_email(session, email=email)
     if not user:
         logging.warning(f"Login failed for {email}. Unknown user.")

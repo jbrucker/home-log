@@ -3,23 +3,24 @@ services:
   backend:
     build: ./backend
     # A volume mount-binds ./backend/app (on host) to /app/app (in container).
-    # This means that changes to code in "app" are immediately reflected in the 
-    # running container.
-    # Useful for development if 'CMD' also includes the "--reload" option.
+    # This means that changes to code in "app" are immediately reflected in 
+    # the running container.
+    # Useful for development if 'CMD' includes the "--reload" option.
     # This avoids mounting other directories (backend/tests, backend/experiments)
     # in the container. 
     # For production, you should remove this.
     volumes:
       - ./backend/app:/app/app
       - /tmp:/tmp
-    ports:
-      - "8000:8000"
+    # nginx is acting as proxy. For security & architecture, do not expose port 8000.
+    #ports:
+    #  - "8000:8000"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      PROMETHIUS_MULTIPROC_DIR: /tmp
+      PROMETHEUS_MULTIPROC_DIR: /tmp
     depends_on:
       - db
     healthcheck:
@@ -27,9 +28,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - app-net
 
   nginx:
-    # Nginx web server. Listen on port 8080 on native host, mapped to port 80 in container.
+    # Nginx web server. Listen on port 8080 on the native host, mapped to port 80 in container.
     # nginx:alpine is smaller than nginx:stable (52MB vs 199MB) and requires less memory.
     # nginx:alpine includes fewer nginx modules, fewer libraries, and musl libc instead of glibc.
     image: nginx:alpine
@@ -41,14 +44,23 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend
+    networks:
+      - app-net
 
   nginx-exporter:
-    # Export server metrics for monitoring via Prometheus
+    # Export server metrics for monitoring via Prometheus..
+    # nginx-exporter supposedly scrapes nginx inside 
     image: nginx/nginx-prometheus-exporter
+    container_name: nginx_exporter
     ports:
-       - "9113:9113"
+       # no need to expose a port
+       # - "9113:9113"
     command:
-       - '-nginx.scrape-uri=http://webapp:8000/nginx-status'
+       - '-nginx.scrape-uri=http://nginx:80/nginx_status'
+    depends_on:
+      - nginx
+    networks:
+      - app-net
 
   frontend:
     # Web front-end using Vue.js
@@ -57,6 +69,8 @@ services:
       - ./frontend:/app
     ports:
       - "3000:3000"
+    networks:
+      - app-net
 
   db:
     # Use PostgreSQL 16+ for UUIDv7 support
@@ -72,12 +86,54 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
+      # For Production, do NOT expose a port.
       - "5432:5432"
     volumes:
       # bind mount instructs Docker to copy a file from host to container
       - db_data:/var/lib/postgresql/data
       - ./db/init.d:/docker-entrypoint-initdb.d
+    networks:
+      - app-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports: 
+      - "9090:9090"
+    volumes: 
+      - ./monitor/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    user: "472"       # recommended for Grafana container
+    ports:
+      - "4000:3000"
+    #environment:
+    #  - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitor/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - app-net
 
 volumes:
   db_data:
+  grafana_data:
+  prometheus_data:
 
+networks:
+  app-net:
+    driver: bridge
+
+# Containers on the same network (app-net) communicate using the
+# *internal container ports* not the host-mapped ports.
+# Hence, nginx-exporter scrapes nginx on port 80 instead of 8080.
+# They also use internal DNS names, like 'nginx' or 'backend'.
