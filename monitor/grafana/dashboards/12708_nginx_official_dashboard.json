@@ -561,7 +561,7 @@
     ]
   },
   "timezone": "",
-  "title": "NGINX exporter",
+  "title": "NGINX Prometheus exporter",
   "uid": "MsjffzSZz",
   "version": 1
 }

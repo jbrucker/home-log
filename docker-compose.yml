@@ -48,13 +48,13 @@ services:
       - app-net
 
   nginx-exporter:
-    # Export server metrics for monitoring via Prometheus..
-    # nginx-exporter supposedly scrapes nginx inside 
+    # Export server metrics for monitoring via Prometheus.
+    # nginx-exporter scrapes metrics from nginx container via a defined endpoint.
     image: nginx/nginx-prometheus-exporter
     container_name: nginx_exporter
-    ports:
-       # no need to expose a port
-       # - "9113:9113"
+    # no need to expose a port
+    #ports:
+    # - "9113:9113"
     command:
        - '-nginx.scrape-uri=http://nginx:80/nginx_status'
     depends_on:
