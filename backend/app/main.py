@@ -8,7 +8,6 @@
 
 import logging
 from contextlib import asynccontextmanager
-from logging.handlers import RotatingFileHandler
 import time
 import uuid
 from fastapi import FastAPI, Request, Response
