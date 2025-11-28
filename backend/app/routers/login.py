@@ -34,10 +34,12 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 
     :param form_data: data from login form, containing 'username' and 'password' fields
 
-    `form_data` also has fields for `grant_type`, (optional) `scope`, `client_id`, and `client_secret`
+    `form_data` also has fields for `grant_type`, (optional) `scope`, 
+    `client_id`, and `client_secret`
     The `grant_type` should always be `password` (the OAuth2 flow).
     """
-    # username is really the email address. In our models, 'username' is arbitrary and not unique.
+    # username for identification and logins is really the email address. 
+    # In our models, 'username' is arbitrary and not unique.
     try:
         email = form_data.username
         password = form_data.password

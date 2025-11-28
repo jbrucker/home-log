@@ -2,6 +2,7 @@
 services:
   backend:
     build: ./backend
+    container_name: backend
     # A volume mount-binds ./backend/app (on host) to /app/app (in container).
     # This means that changes to code in "app" are immediately reflected in 
     # the running container.
