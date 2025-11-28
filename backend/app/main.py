@@ -129,9 +129,9 @@ async def monitor_requests(request: Request, call_next):
             route = api_route.path
         else:
             route = request.url.path
-            logging.warning(f"monitor_requests: Failed to extract route template for path={request.url.path}: {ex}")
+            logging.warning(f"monitor_requests: Failed to extract route template for path={request.url.path}")
 
-    except Exception:
+    except Exception as ex:
         logging.exception(ex)
         route = request.url.path
 
@@ -167,7 +167,7 @@ async def log_requests(request: Request, call_next):
        - Log after response to include status/time
     """
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-    auth = request.headers.get("authorization")
+
 
     # Attach req_id to scope so downstream handlers can use it (and to response)
     request.state.request_id = req_id
@@ -175,8 +175,10 @@ async def log_requests(request: Request, call_next):
     # Exclude some requests?
     # Use request.url.path not in ["/favicon.ico", "/health", ...]
     logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params} req_id={req_id}")
-    auth = auth[:-8] + '...' if len(auth) > 8 else '...'
-    logger.debug(f"Authorization: {request.headers.get('authorization',auth)}")
+    auth = request.headers.get("authorization")
+    if auth:
+        auth = auth[:-8] + '...' if len(auth) > 8 else '...'
+        logger.debug(f"Authorization: {request.headers.get('authorization',auth)}")
 
     try:
         response = await call_next(request)
