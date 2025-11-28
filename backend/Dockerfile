@@ -21,4 +21,4 @@ COPY ./app ./app
 # Run the FastAPI application with Uvicorn.
 # "--reload" causes app to check for changes to Python code and dynamically reload.
 # Remove "--reload" arg for production use.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
