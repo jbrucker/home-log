@@ -13,8 +13,7 @@ import uuid
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-# For custom metrics
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter
 from app.core.database import db
 from app.routers import auth, data_source, health, login, reading, user
 
@@ -43,11 +42,13 @@ async def lifecycle(app: FastAPI):
 # redirect_slashes=False disables automatic redirects in case of missing trailing "/"
 app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
 
-# Instrument for Prometheus using pre-defined metrics
-# Prefer instrument() + expose() to ensure custom metrics registered before expose
+# Instrument for Prometheus using pre-defined metrics from Instrumentator.
+# The Instrumentator provides built-in metrics for request count, duration, and in-progress.
+# We only add custom metrics for exception tracking which the Instrumentator doesn't provide.
 instrumenter = Instrumentator(
-    should_group_status_codes=True,  # optionally group 2xx/4xx/5xx
-    should_ignore_untemplated=True   # avoid high-cardinality paths where available
+    should_group_status_codes=True,           # optionally group 2xx/4xx/5xx
+    should_ignore_untemplated=True,           # avoid high-cardinality paths where available
+    should_instrument_requests_inprogress=True  # track in-progress requests
 )
 # Attach Instrumentator before the app starts
 logger.info("Instrumenting app for Prometheus")
@@ -56,28 +57,7 @@ instrumenter.expose(app, include_in_schema=False)
 logger.info("Done instrumenting app")
 
 
-# Additional metrics for Prometheus
-# Define metrics
-REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP Requests',
-    ['method', 'endpoint', 'status_code']
-)
-
-REQUEST_LATENCY = Histogram(
-    'http_request_duration_seconds',
-    'HTTP Request Latency (sec)',
-    ['method', 'endpoint'],
-    # tunable buckets for web latency (seconds)
-    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10]
-)
-
-IN_PROGRESS = Gauge(
-    'http_requests_in_progress',
-    'HTTP Requests in Progress',
-    ['method', 'endpoint']
-)
-
+# Custom metric for exception tracking (not provided by Instrumentator)
 EXCEPTIONS = Counter(
     'http_request_exceptions_total',
     'Total exceptions during request processing',
@@ -108,30 +88,26 @@ async def strip_trailing_slash(request: Request, call_next):
 
 
 @app.middleware("http")
-async def monitor_requests(request: Request, call_next):
-    """Collect Prometheus metrics.
+async def track_exceptions(request: Request, call_next):
+    """Track exceptions in Prometheus.
 
-      Request count and latency by endpoint, method, & status code.
-      Exceptions by endpoint and method.
-      - endpoint: use route template when available (reduces cardinality)
-      - method: use request.method
-      - status_code: as string
+    The Instrumentator handles request count, latency, and in-progress tracking.
+    This middleware only tracks exceptions by type, which the Instrumentator doesn't provide.
     """
     endpoint = request.url.path
-    
+
     # Skip metrics endpoint
     if endpoint.startswith("/metrics"):
         return await call_next(request)
-    
+
     method = request.method.upper()
-    # Prefer route template over request path if available 
+    # Prefer route template over request path if available
     # This avoids endpoint explosion in metrics
     route = request.scope.get("route")
     try:
         if route is not None:
-            endpoint = route.path 
+            endpoint = route.path
     except Exception:
-        # use endpoint = request.url.path
         endpoint = request.url.path
 
     # Avoid extremely long endpoint labels
@@ -139,25 +115,12 @@ async def monitor_requests(request: Request, call_next):
     if len(endpoint) > MAX_ENDPOINT_LENGTH:
         endpoint = endpoint[:MAX_ENDPOINT_LENGTH]
 
-    IN_PROGRESS.labels(method=method, endpoint=endpoint).inc()
-    # time.perf_counter() is higher resolution than time.time()
-    start_time = time.perf_counter()
-    
     try:
-        response = await call_next(request)
-        status_code = response.status_code
+        return await call_next(request)
     except Exception as ex:
         EXCEPTIONS.labels(method=method, endpoint=endpoint, exception_type=ex.__class__.__name__).inc()
-        status_code = 500
         # Re-raise exception so FastAPI can handle it
         raise
-    finally:
-        latency = time.perf_counter() - start_time
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=str(status_code)).inc()
-        IN_PROGRESS.labels(method=method, endpoint=endpoint).dec()
-    
-    return response
 
 
 @app.middleware("http")
