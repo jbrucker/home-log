@@ -116,11 +116,13 @@ async def track_exceptions(request: Request, call_next):
         endpoint = endpoint[:MAX_ENDPOINT_LENGTH]
 
     try:
-        return await call_next(request)
+        response = await call_next(request)
     except Exception as ex:
         EXCEPTIONS.labels(method=method, endpoint=endpoint, exception_type=ex.__class__.__name__).inc()
         # Re-raise exception so FastAPI can handle it
         raise
+
+    return response
 
 
 @app.middleware("http")
