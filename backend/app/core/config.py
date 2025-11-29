@@ -47,7 +47,7 @@ class Settings:
 # settings = Settings()
 
 # DATABASE_URL is defined in either .env or in docker-compose as an env var.
-DEV_DATABASE_URL = config("DATABASE_URL", "")
-settings = Settings(DEV_DATABASE_URL)
+DATABASE_URL = config("DATABASE_URL", "")
+settings = Settings(DATABASE_URL)
 
 # For unit testing, the database URL is overridden in tests/conftest.py (TEST_DATABASE_URL)

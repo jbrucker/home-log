@@ -41,7 +41,7 @@ async def lifecycle(app: FastAPI):
 
 
 # redirect_slashes=False disables automatic redirects in case of missing trailing "/"
-app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
+app = FastAPI(lifespan=lifecycle, redirect_slashes=True)
 
 # Instrument for Prometheus using pre-defined metrics
 # Prefer instrument() + expose() to ensure custom metrics registered before expose
@@ -92,14 +92,21 @@ async def on_startup():
         # await connection.run_sync(models.DataSource.__table__.create, checkfirst=True)
         pass
 
-# Middleware order: normalize first, then monitoring, then logging
+# Middleware invocation order: normalize request, monitoring, logging, CORS 
+# Middleware are invoked in the **reverse** order they are added to the app.
 
-@app.middleware("http")
-async def strip_trailing_slash(request: Request, call_next):
-    """Remove trailing / from URLs for consistency."""
-    if request.url.path.endswith("/") and request.url.path != "/":
-        request.url.path = request.url.path.rstrip("/")
-    return await call_next(request)
+def write_scope(request: Request):
+    """Write request scope to a file, for development to understand FastAPI internals.
+
+    :param request: FastAPI Request object
+    """
+    FILENAME = "request_scopes.txt"
+    with open(FILENAME, "a") as file:
+        req_type = type(request).__name__     
+        file.write(f"scope for {request.method} {request.url.path}\n")
+        for key, value in request.scope.items():
+            file.write(f"  {key}: {value}\n")
+        file.write("\n")
 
 
 @app.middleware("http")
@@ -112,7 +119,12 @@ async def monitor_requests(request: Request, call_next):
       - method: use request.method
       - status_code: as string
     """
+    logger.info(f"monitor_requests: request.url.path={request.url.path}")
+
     endpoint = request.url.path
+    # Normalize: remove trailing slash
+    if endpoint.endswith("/") and endpoint != "/":
+        endpoint = endpoint[:-1]
     
     # Skip metrics endpoint
     if endpoint.startswith("/metrics"):
@@ -129,14 +141,15 @@ async def monitor_requests(request: Request, call_next):
             route = api_route.path
         else:
             route = request.url.path
-            logging.warning(f"monitor_requests: Failed to extract route template for path={request.url.path}")
+            # This happens a lot, so don't log it.
+            #logging.warning(f"monitor_requests: Failed to extract route template for path={request.url.path}")
 
     except Exception as ex:
         logging.exception(ex)
         route = request.url.path
 
     # Avoid extremely long endpoint labels
-    MAX_ENDPOINT_LENGTH = 200
+    MAX_ENDPOINT_LENGTH = 100
     if len(route) > MAX_ENDPOINT_LENGTH:
         route = route[:MAX_ENDPOINT_LENGTH]
 
@@ -168,13 +181,12 @@ async def log_requests(request: Request, call_next):
     """
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 
-
     # Attach req_id to scope so downstream handlers can use it (and to response)
     request.state.request_id = req_id
     start_time = time.perf_counter()
     # Exclude some requests?
     # Use request.url.path not in ["/favicon.ico", "/health", ...]
-    logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params} req_id={req_id}")
+    logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params}")
     auth = request.headers.get("authorization")
     if auth:
         auth = auth[:-8] + '...' if len(auth) > 8 else '...'
@@ -200,6 +212,19 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+# Normalize URLs by removing trailing "/" to avoid 307 Redirects
+@app.middleware("http")
+async def strip_trailing_slash(request: Request, call_next):
+    """Remove trailing / from URLs for consistency."""
+    # write_scope(request)
+    request_path = request.scope["path"] or request.url.path
+    if request_path.endswith("/") and request_path != "/":
+        request.scope["path"] = request_path.rstrip("/")
+
+    response = await call_next(request)
+    return response
+
+
 # Middleware for CORS support
 origins = [
     "http://localhost:5173",   # Vue dev server
@@ -209,6 +234,8 @@ origins = [
 # For development only:
 # origins = ["*"]
 
+# See Wiki page "FastAPI Programming Notes" for why CORS added last
+# and invoked first.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
