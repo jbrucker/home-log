@@ -2,6 +2,7 @@
 
 from app.main import app
 
-for route in app.routes:
+sorted_routes = sorted(app.routes, key=lambda route: route.path)
+for route in sorted_routes:
     methods = ",".join(route.methods or [])
     print(f"{methods:10s} {route.path}")

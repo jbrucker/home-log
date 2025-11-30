@@ -44,8 +44,10 @@ async def test_create_user(session, user_data: dict):
 @pytest.mark.asyncio
 async def test_create_and_update_dates(session, user):
     """created_at and updated_at are automatically set and updated."""
-    assert isinstance(user.created_at, datetime), "user.created_at should be datetime but is {type(user.created_at).__name__}"
-    assert isinstance(user.updated_at, datetime), "user.created_at should be datetime but is {type(user.updated_at).__name__}"
+    assert isinstance(user.created_at, datetime),\
+        "user.created_at should be datetime but is {type(user.created_at).__name__}"
+    assert isinstance(user.updated_at, datetime),\
+        "user.updated_at should be datetime but is {type(user.updated_at).__name__}"
     # initially both dates should be nearly the same
     delta = user.updated_at - user.created_at
     assert abs(delta.microseconds <= 500000)  # allow for imprecise timestamps

@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 # For custom metrics
 from prometheus_client import Counter, Histogram, Gauge
+from app.core import config
 from app.core.database import db
 from app.routers import auth, data_source, health, login, reading, user
 
@@ -23,7 +24,7 @@ from app.routers import auth, data_source, health, login, reading, user
 console_handler = logging.StreamHandler()
 # Initialize log format
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=config.settings.log_level,
     format="%(asctime)s %(levelname)s %(module)s.%(name)s: %(message)s",
     handlers=[console_handler]
 )
@@ -186,7 +187,7 @@ async def log_requests(request: Request, call_next):
     start_time = time.perf_counter()
     # Exclude some requests?
     # Use request.url.path not in ["/favicon.ico", "/health", ...]
-    logger.info(f"{request.method.upper()} {request.url.path}?{request.query_params}")
+    logger.debug(f"{request.method.upper()} {request.url.path}?{request.query_params}")
     auth = request.headers.get("authorization")
     if auth:
         auth = auth[:-8] + '...' if len(auth) > 8 else '...'
@@ -202,7 +203,7 @@ async def log_requests(request: Request, call_next):
     process_time = (time.perf_counter() - start_time) * 1000
 
     # Log response
-    logger.info(
+    logger.debug(
         f"Response: {request.method} {request.url.path} "
         f"{response.status_code} {process_time:.2f}ms"
         f"| req_id={req_id}"
@@ -241,7 +242,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],  # Needed?
-    allow_headers=["*"],
+    allow_headers=["Authorization", "*"],
 )
 
 

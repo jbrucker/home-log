@@ -13,6 +13,8 @@ from app.utils import jwt
 from app import schemas
 from fastapi.responses import HTMLResponse
 
+from app.core import config
+
 router = APIRouter(tags=['Form-based Authentication for Web Apps'])
 
 
@@ -89,5 +91,8 @@ async def validate_login(email: str, password: str, session: Session) -> str:
             )
     # create and return a token
     access_token = jwt.create_access_token(data={"user_id": user.id})
-    logging.info(f"Login success for {email} Access token granted.")
+    #TODO Remove sensitive info from logs
+    logging.info(f"Login success for {email} Access token granted."
+                 f" Token {access_token} expires in {config.settings.access_token_expire_minutes} minutes.")
+
     return access_token

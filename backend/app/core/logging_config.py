@@ -5,13 +5,13 @@ everything to stdout and use an external logging collector
 to forward and aggregate logs.
 """
 import logging
-from decouple import config
+from app.core import config
 from pythonjsonlogger import jsonlogger
 
 
 def create_logging_config():
     """Return a logging configuration in Python dictConfig format."""
-    log_level = config("LOG_LEVEL", default="INFO")
+    log_level = config.settings.log_level
 
     # Common JSON formatter
     formatter = jsonlogger.JsonFormatter(

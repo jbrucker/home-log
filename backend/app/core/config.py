@@ -1,6 +1,5 @@
 """Global settings and app configuration."""
 
-import os
 from decouple import config
 
 # Maximum length for some string fields in database schema
@@ -38,13 +37,12 @@ class Settings:
         # os.urandom(32).hex()
         # secrets.token_hex(32)  -- a wrapper for os.urandom(n).hex()
         # Shell: `openssl rand --hex 32`
-        self.secret_key = config("SECRET_KEY", default=os.urandom(32).hex())
+        self.secret_key = config("SECRET_KEY")  # no default, must be set in env vars
         # Use short expiry on tokens
-        self.access_token_expire_minutes = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=60, cast=int)
+        self.access_token_expire_minutes = config("ACCESS_TOKEN_EXPIRE_MINUTES",
+                                                default=60, cast=int)
+        self.log_level = config("LOG_LEVEL", "INFO")
 
-
-# For production
-# settings = Settings()
 
 # DATABASE_URL is defined in either .env or in docker-compose as an env var.
 DATABASE_URL = config("DATABASE_URL", "")
