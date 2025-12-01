@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 # For custom metrics
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram
 from app.core import config
 from app.core.database import db
 from app.routers import auth, data_source, health, login, reading, user
@@ -42,7 +42,7 @@ async def lifecycle(app: FastAPI):
 
 
 # redirect_slashes=False disables automatic redirects in case of missing trailing "/"
-app = FastAPI(lifespan=lifecycle, redirect_slashes=True)
+app = FastAPI(lifespan=lifecycle, redirect_slashes=False)
 
 # Instrument for Prometheus using pre-defined metrics
 # Prefer instrument() + expose() to ensure custom metrics registered before expose
@@ -79,8 +79,6 @@ REQUEST_DURATION = Histogram(
     buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10]
 )
 
-
-
 # Optional: initialize schema on startup
 # Deprecated: @app.on_event("startup")
 async def on_startup():
@@ -93,8 +91,9 @@ async def on_startup():
         # await connection.run_sync(models.DataSource.__table__.create, checkfirst=True)
         pass
 
-# Middleware invocation order: normalize request, monitoring, logging, CORS 
+# Middleware invocation order: CORS (first), normalize request, logging, monitoring (last) 
 # Middleware are invoked in the **reverse** order they are added to the app.
+# Registration order: monitor_requests, log_requests, strip_trailing_slash, CORS
 
 def write_scope(request: Request):
     """Write request scope to a file, for development to understand FastAPI internals.
@@ -102,8 +101,7 @@ def write_scope(request: Request):
     :param request: FastAPI Request object
     """
     FILENAME = "request_scopes.txt"
-    with open(FILENAME, "a") as file:
-        req_type = type(request).__name__     
+    with open(FILENAME, "a") as file:    
         file.write(f"scope for {request.method} {request.url.path}\n")
         for key, value in request.scope.items():
             file.write(f"  {key}: {value}\n")
@@ -120,17 +118,11 @@ async def monitor_requests(request: Request, call_next):
       - method: use request.method
       - status_code: as string
     """
-    logger.info(f"monitor_requests: request.url.path={request.url.path}")
-
     endpoint = request.url.path
-    # Normalize: remove trailing slash
-    if endpoint.endswith("/") and endpoint != "/":
-        endpoint = endpoint[:-1]
-    
     # Skip metrics endpoint
     if endpoint.startswith("/metrics"):
         return await call_next(request)
-    
+
     method = request.method.upper()
     # Prefer route template over request path if available 
     # This avoids endpoint explosion in metrics.
@@ -141,34 +133,33 @@ async def monitor_requests(request: Request, call_next):
         if api_route is not None:
             route = api_route.path
         else:
-            route = request.url.path
-            # This happens a lot, so don't log it.
+            route = endpoint
+            if route.endswith("/") and route != "/":
+                route = route[:-1]
+            # Don't log absence of route template as it may be common.
             #logging.warning(f"monitor_requests: Failed to extract route template for path={request.url.path}")
-
     except Exception as ex:
         logging.exception(ex)
         route = request.url.path
 
-    # Avoid extremely long endpoint labels
-    MAX_ENDPOINT_LENGTH = 100
-    if len(route) > MAX_ENDPOINT_LENGTH:
-        route = route[:MAX_ENDPOINT_LENGTH]
+    # Avoid extremely long route labels
+    MAX_LABEL_LENGTH = 100
+    if len(route) > MAX_LABEL_LENGTH:
+        route = route[:MAX_LABEL_LENGTH]
 
-    # time.perf_counter() is higher resolution than time.time()
+    # time.perf_counter() has higher resolution than time.time()
     start_time = time.perf_counter()
     
     try:
         response = await call_next(request)
-        status_code = response.status_code
     except Exception as ex:
-        status_code = 500
+        logging.error(f"Request processing failed: {ex}", exc_info=True)
         # Re-raise exception so FastAPI can handle it
         raise
     finally:
         latency = time.perf_counter() - start_time
         REQUEST_DURATION.labels(method=method, route=route).observe(latency)
-        REQUEST_COUNT.labels(method=method, route=route, status_code=str(status_code)).inc()
-    
+        
     return response
 
 
@@ -191,7 +182,7 @@ async def log_requests(request: Request, call_next):
     auth = request.headers.get("authorization")
     if auth:
         auth = auth[:-8] + '...' if len(auth) > 8 else '...'
-        logger.debug(f"Authorization: {request.headers.get('authorization',auth)}")
+        logger.debug(f"Authorization: {auth}")
 
     try:
         response = await call_next(request)

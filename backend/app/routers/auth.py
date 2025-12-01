@@ -119,7 +119,7 @@ async def validate_token_diy(
 
 @router.put('/validate')
 async def validate_token(token: str = Depends(oauth2.oauth2_scheme)):
-    """Validate the access token."""
+    """Validate the access token submitted in the Authorization header."""
     try:
         return jwt.verify_access_token(token)
     except jwt.ExpiredSignatureError:

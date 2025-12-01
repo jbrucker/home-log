@@ -91,8 +91,8 @@ async def validate_login(email: str, password: str, session: Session) -> str:
             )
     # create and return a token
     access_token = jwt.create_access_token(data={"user_id": user.id})
-    #TODO Remove sensitive info from logs
-    logging.info(f"Login success for {email} Access token granted."
-                 f" Token {access_token} expires in {config.settings.access_token_expire_minutes} minutes.")
+    logging.info(f"Login success for {email} Access token expires in {config.settings.access_token_expire_minutes} minutes.")
+    # TODO Remove sensitive info from logs
+    logging.debug("Access token {access_token}")
 
     return access_token

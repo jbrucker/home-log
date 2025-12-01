@@ -72,7 +72,7 @@ def test_create_data_source_always_owned_by_auth_user(alexa: models.User, sally,
 
 
 def test_create_data_source_returns_location(client: TestClient, alexa: models.User):
-    """Creating a new resource should return a Location header with URL of the created resource."""
+    """Creating a new resource should return a Location header with URL of the resource."""
     payload = {
         "name": "Test Source",
         "metrics": {"High": "degree", "Low": "degree"}
@@ -92,7 +92,7 @@ def test_create_data_source_returns_location(client: TestClient, alexa: models.U
 
 
 def test_update_data_source_success(alexa: models.User, client: TestClient):
-    """Authenticated user can update their own data source."""
+    """Authenticated user can update user's own data source."""
     # Create a data source owned by Alexa
     token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
     data = {"name": "Original Name", "metrics": {"weight": "lb"}, "description": "Original description"}
@@ -154,7 +154,7 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
 
 
 def test_unuathorized_update_data_source(alexa: models.User, sally, client: TestClient):
-    """User cannot update a data source they do not own."""
+    """User cannot update a data source the user does not own."""
     # Alexa creates a data source
     create_resp = client.post(
                     path("/sources/"),
@@ -185,7 +185,7 @@ def test_update_data_source_not_found(alexa: models.User, client: TestClient):
 
 
 def test_delete_data_source_success(alexa: models.User, client: TestClient):
-    """Authenticated user can delete their own data source."""
+    """Authenticated user can delete own data source."""
     # Alexa creates a data source
     auth_header_alexa = auth_header(alexa)
     create_response = client.post(
@@ -206,7 +206,7 @@ def test_delete_data_source_success(alexa: models.User, client: TestClient):
 
 
 def test_delete_data_source_unauthorized(alexa: models.User, sally, client: TestClient):
-    """User cannot delete a data source he/she does not own."""
+    """User cannot delete a data source the user does not own."""
     # Alexa creates a data source
     create_resp = client.post(
         path("/sources/"),
