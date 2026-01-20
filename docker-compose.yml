@@ -7,14 +7,14 @@ services:
     # This means that changes to code in "app" are immediately reflected in 
     # the running container.
     # Useful for development if 'CMD' includes the "--reload" option.
-    # This avoids mounting other directories (backend/tests, backend/experiments)
-    # in the container. 
+    # This avoids mounting other directories in the container,
+    # such as backend/tests, backend/experiments.
     # For production, you should remove this.
     volumes:
       - ./backend/app:/app/app
       - backend_metrics:/tmp
     # For production, do not expose port 8000. 
-    # Instead, require use of nginx as proxy.
+    # Instead, require clients to use nginx as proxy.
     ports:
       - "8000:8000"
     environment:
@@ -42,7 +42,8 @@ services:
       - app-net
 
   nginx:
-    # Nginx web server. Listen on port 8080 on the native host, mapped to port 80 in container.
+    # Nginx web server as proxy. 
+    # Listen on port 8080 on the native host, mapped to port 80 in container.
     # nginx:alpine is smaller than nginx:stable (52MB vs 199MB) and requires less memory.
     # nginx:alpine includes fewer nginx modules, fewer libraries, and musl libc instead of glibc.
     image: nginx:alpine
