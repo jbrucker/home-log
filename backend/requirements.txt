@@ -23,3 +23,6 @@ argon2-cffi
 
 # jose provides JWT utilities.
 python-jose[cryptography]
+
+# Prometheus metrics for FastAPI. This also installs prometheus_client
+prometheus-fastapi-instrumentator

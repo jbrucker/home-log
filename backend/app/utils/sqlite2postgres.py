@@ -2,6 +2,10 @@
 
    Then copy data from the Sqlite database to Postgres.  This totally screwed up the
    auto-generated index mechanism. Subsequent creates (INSERT) caused Integrity errors.
+
+   Packages:
+   You need to add the synchronous postgres driver to requirements-dev.txt
+   to use this.
 """
 
 import json

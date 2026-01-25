@@ -77,7 +77,8 @@ async def get_reading(source_id: int,
                       current_user: models.User = Depends(oauth2.get_current_user)
                       ) -> schemas.Reading:
     """Get one reading from a data source, identified by the reading id."""
-    reading: models.Reading = await validate_and_get(source_id, reading_id, session, current_user)
+    reading: models.Reading = await validate_and_get(
+            source_id, reading_id, session, current_user)
     return reading
 
 

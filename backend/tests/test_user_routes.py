@@ -84,7 +84,8 @@ async def test_get_users_returns_max(session, auth_user: models.User, client: Te
     """Router returns up to 100 users when no limit is specified."""
     DEFAULT_LIMIT = 100
     await create_users(session, 200)
-    result = client.get(path("/users/"), headers=auth_header(auth_user))
+    result = client.get(path("/users" \
+    ""), headers=auth_header(auth_user))
     assert result.status_code == status.HTTP_200_OK
     user_data = result.json()
     assert isinstance(user_data, list)

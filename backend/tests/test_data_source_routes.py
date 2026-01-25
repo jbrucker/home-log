@@ -3,12 +3,12 @@ from datetime import datetime, timezone
 from fastapi import status
 from fastapi.testclient import TestClient
 
-import pytest
 from app import models, schemas
 from app.routers.base import path
 from app.utils import jwt
 # VS Code thinks these fixtures are unused, but they are used & necessary.
-# MUST import session fixture to force it to be executed, even if 'session' is not injected in any tests
+# MUST import the `session` fixture to force it to be evaluated, 
+# even if 'session' is not injected in any tests.
 from .fixtures import session, alexa, sally, client
 from .utils import auth_header
 
@@ -23,9 +23,8 @@ def test_create_data_source_as_authenticated(alexa: models.User, client: TestCli
     via the POST /source/ endpoint. It checks that the response status code is 201 (Created),
     and that the returned data contains the expected fields and values, including 'id' and 'created_at'.
 
-    Args:
-        client: FastAPI Test client.
-        alexa: Fixture providing a user entity.
+    :param client: FastAPI Test client.
+    :param alexa: Fixture providing a user entity.
     """
     data = {
         "name": "Test Source",
@@ -73,7 +72,7 @@ def test_create_data_source_always_owned_by_auth_user(alexa: models.User, sally,
 
 
 def test_create_data_source_returns_location(client: TestClient, alexa: models.User):
-    """Creating a new resource should return a Location header with URL of the created resource."""
+    """Creating a new resource should return a Location header with URL of the resource."""
     payload = {
         "name": "Test Source",
         "metrics": {"High": "degree", "Low": "degree"}
@@ -93,7 +92,7 @@ def test_create_data_source_returns_location(client: TestClient, alexa: models.U
 
 
 def test_update_data_source_success(alexa: models.User, client: TestClient):
-    """Authenticated user can update their own data source."""
+    """Authenticated user can update user's own data source."""
     # Create a data source owned by Alexa
     token = jwt.create_access_token(data={"user_id": alexa.id}, expires=30)
     data = {"name": "Original Name", "metrics": {"weight": "lb"}, "description": "Original description"}
@@ -155,7 +154,7 @@ def test_partial_update_preserves_old_data(alexa: models.User, client: TestClien
 
 
 def test_unuathorized_update_data_source(alexa: models.User, sally, client: TestClient):
-    """User cannot update a data source they do not own."""
+    """User cannot update a data source the user does not own."""
     # Alexa creates a data source
     create_resp = client.post(
                     path("/sources/"),
@@ -186,7 +185,7 @@ def test_update_data_source_not_found(alexa: models.User, client: TestClient):
 
 
 def test_delete_data_source_success(alexa: models.User, client: TestClient):
-    """Authenticated user can delete their own data source."""
+    """Authenticated user can delete own data source."""
     # Alexa creates a data source
     auth_header_alexa = auth_header(alexa)
     create_response = client.post(
@@ -207,7 +206,7 @@ def test_delete_data_source_success(alexa: models.User, client: TestClient):
 
 
 def test_delete_data_source_unauthorized(alexa: models.User, sally, client: TestClient):
-    """User cannot delete a data source they do not own."""
+    """User cannot delete a data source the user does not own."""
     # Alexa creates a data source
     create_resp = client.post(
         path("/sources/"),
@@ -234,3 +233,68 @@ def test_delete_data_source_unauthenticated(client: TestClient):
     """Cannot delete a data source without authentication."""
     delete_resp = client.delete(path("/sources/1"))
     assert delete_resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_get_one_data_source(alexa: models.User, client: TestClient):
+    """Authenticated user can get one of his own data sources."""
+    # Alexa creates a data source
+    create_response = client.post(
+        path("/sources/"),
+        headers=auth_header(alexa),
+        json={"name": "Alexa's Source", "unit": "kWh"}
+    )
+    source_id = create_response.json()["id"]
+
+    # Alexa retrieves the data source
+    get_response = client.get(path(f"/sources/{source_id}"), headers=auth_header(alexa))
+    assert get_response.status_code == status.HTTP_200_OK
+    ds_data = get_response.json()
+    assert ds_data["id"] == source_id
+    assert ds_data["name"] == "Alexa's Source"
+
+    # The create_response contains a Location header with the URL of the created resource
+    location = create_response.headers.get("location", default=None)
+    assert location is not None
+    # The Location header may be an absolute or relative URL;
+    # either way we should be able to GET it
+    get_response2 = client.get(location, headers=auth_header(alexa))
+    assert get_response2.status_code == status.HTTP_200_OK
+
+
+def test_get_data_sources_unauthenticated(client: TestClient):
+    """An unauthenticated request cannot get data sources."""
+    response = client.get(path("/sources/"))
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_get_data_sources_returns_only_own(
+        alexa: models.User, sally: models.User, client: TestClient):
+    """A user can get only her own data sources."""
+    # Alexa creates three data sources
+    for n in range(1,4):
+        client.post(
+            path("/sources/"),
+            headers=auth_header(alexa),
+            json={"name": f"Alexa's Source {n}", "unit": f"unit{n}"}
+        )
+    # Sally creates one data source
+    client.post(
+        path("/sources/"),
+        headers=auth_header(sally),
+        json={"name": "Sally's Source 1", "unit": "unit1"}
+    )
+
+    # Alexa retrieves her data sources
+    response_alexa = client.get(path("/sources/"), headers=auth_header(alexa))
+    assert response_alexa.status_code == status.HTTP_200_OK
+    sources_alexa = response_alexa.json()
+    assert len(sources_alexa) == 3
+    for ds in sources_alexa:
+        assert ds["name"].startswith("Alexa's Source")
+
+    # Sally retrieves her data sources
+    response_sally = client.get(path("/sources/"), headers=auth_header(sally))
+    assert response_sally.status_code == status.HTTP_200_OK
+    sources_sally = response_sally.json()
+    assert len(sources_sally) == 1
+    assert sources_sally[0]["name"] == "Sally's Source 1"

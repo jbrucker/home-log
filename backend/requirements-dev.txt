@@ -19,6 +19,3 @@ mypy
 # cfgv distlib filelock identify5 nodeenv platformdirs pre-commit virtualenv
 # (and requires many others already in my virtual env)
 # pre-commit
-
-# Needed only for establishing a synchronous database connection to Postgres.
-# Needed to run the app/utils/sqlite2postgres.py script.

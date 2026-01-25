@@ -2,37 +2,77 @@
 services:
   backend:
     build: ./backend
+    container_name: backend
     # A volume mount-binds ./backend/app (on host) to /app/app (in container).
-    # This means that changes to code in "app" are immediately reflected in the 
-    # running container.
-    # Useful for development if 'CMD' also includes the "--reload" option.
-    # This avoids mounting other directories (backend/tests, backend/experiments)
-    # in the container. 
+    # This means that changes to code in "app" are immediately reflected in 
+    # the running container.
+    # Useful for development if 'CMD' includes the "--reload" option.
+    # This avoids mounting other directories in the container,
+    # such as backend/tests, backend/experiments.
     # For production, you should remove this.
     volumes:
       - ./backend/app:/app/app
+      - backend_metrics:/tmp
+    # For production, do not expose port 8000. 
+    # Instead, require clients to use nginx as proxy.
     ports:
       - "8000:8000"
     environment:
+      # These values are defined in .env
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PROMETHEUS_MULTIPROC_DIR: /tmp
+      # JWT vars
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL}
     depends_on:
       - db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Use urllib.request instead of curl. curl may not be installed in Docker image.
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - app-net
+
+  nginx:
+    # Nginx web server as proxy. 
+    # Listen on port 8080 on the native host, mapped to port 80 in container.
+    # nginx:alpine is smaller than nginx:stable (52MB vs 199MB) and requires less memory.
+    # nginx:alpine includes fewer nginx modules, fewer libraries, and musl libc instead of glibc.
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8080:80"
+      - "8443:443" # Reserved for HTTPS, not yet configured in nginx.
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/static:ro
+    depends_on:
+      - backend
+    networks:
+      - app-net
 
   nginx-exporter:
-    # Export server metrics for monitoring via Prometheus
+    # Export server metrics for monitoring via Prometheus.
+    # nginx-exporter scrapes metrics from nginx container via a defined endpoint.
     image: nginx/nginx-prometheus-exporter
-    ports:
-       - "9113:9113"
+    container_name: nginx_exporter
+    # no need to expose a port
+    #ports:
+    # - "9113:9113"
     command:
-       - '-nginx.scrape-uri=http://webapp:8000/nginx-status'
+      - '-nginx.scrape-uri=http://nginx:80/nginx_status'
+    depends_on:
+      - nginx
+    networks:
+      - app-net
 
   frontend:
     # Web front-end using Vue.js
@@ -41,10 +81,12 @@ services:
       - ./frontend:/app
     ports:
       - "3000:3000"
+    networks:
+      - app-net
 
   db:
     # Use PostgreSQL 16+ for UUIDv7 support
-    image: postgres:16     
+    image: postgres:16
     restart: unless-stopped
     environment:
       # POSTGRES_PASSWORD is required by the image.
@@ -56,12 +98,57 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
+      # For Production, do NOT expose the port.
       - "5432:5432"
     volumes:
       # bind mount instructs Docker to copy a file from host to container
       - db_data:/var/lib/postgresql/data
       - ./db/init.d:/docker-entrypoint-initdb.d
+    networks:
+      - app-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      # Expose 9090 for testing.  Comment out for production or place behind a secure gateway.
+      - "9090:9090"
+    volumes:
+      - ./monitor/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    user: "472" # recommended for Grafana container
+    ports:
+      - "4000:3000"
+    environment:
+      # Initial admin password. Once set in grafana, this has no effect.
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitor/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - app-net
 
 volumes:
   db_data:
+  backend_metrics:
+  grafana_data:
+  prometheus_data:
 
+networks:
+  app-net:
+    driver: bridge
+
+# Containers on the same network (app-net) communicate using the
+# *internal container ports* not the host-mapped ports.
+# Hence, nginx-exporter scrapes nginx on port 80 instead of 8080.
+# They also use internal DNS names, like 'nginx' or 'backend'.

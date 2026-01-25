@@ -13,6 +13,8 @@ from app.utils import jwt
 from app import schemas
 from fastapi.responses import HTMLResponse
 
+from app.core import config
+
 router = APIRouter(tags=['Form-based Authentication for Web Apps'])
 
 
@@ -34,10 +36,12 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 
     :param form_data: data from login form, containing 'username' and 'password' fields
 
-    `form_data` also has fields for `grant_type`, (optional) `scope`, `client_id`, and `client_secret`
+    `form_data` also has fields for `grant_type`, (optional) `scope`, 
+    `client_id`, and `client_secret`
     The `grant_type` should always be `password` (the OAuth2 flow).
     """
-    # username is really the email address. In our models, 'username' is arbitrary and not unique.
+    # username for identification and logins is really the email address. 
+    # In our models, 'username' is arbitrary and not unique.
     try:
         email = form_data.username
         password = form_data.password
@@ -58,8 +62,10 @@ async def validate_login(email: str, password: str, session: Session) -> str:
     """
     if not email or not password:
         logging.warning(f"Login failed for {email}. Missing username or password.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                      detail="Username and password may not be empty.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password may not be empty."
+            )
     user = await user_dao.get_by_email(session, email=email)
     if not user:
         logging.warning(f"Login failed for {email}. Unknown user.")
@@ -85,5 +91,8 @@ async def validate_login(email: str, password: str, session: Session) -> str:
             )
     # create and return a token
     access_token = jwt.create_access_token(data={"user_id": user.id})
-    logging.info(f"Login success for {email} Access token granted.")
+    logging.info(f"Login success for {email} Access token expires in {config.settings.access_token_expire_minutes} minutes.")
+    # TODO Remove sensitive info from logs
+    logging.debug("Access token {access_token}")
+
     return access_token

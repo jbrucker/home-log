@@ -1,0 +1,55 @@
+{
+  "id": null,
+  "uid": "nginx-main",
+  "title": "NGINX Monitoring",
+  "tags": ["nginx", "prometheus"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Requests Per Second",
+      "targets": [
+        {
+          "expr": "rate(nginx_http_requests_total[1m])",
+          "legendFormat": "RPS",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 }
+    },
+    {
+      "type": "gauge",
+      "title": "Active Connections",
+      "targets": [
+        {
+          "expr": "nginx_connections_active",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 }
+    },
+    {
+      "type": "graph",
+      "title": "Connection States",
+      "targets": [
+        { "expr": "nginx_connections_reading", "legendFormat": "reading", "refId": "A" },
+        { "expr": "nginx_connections_writing", "legendFormat": "writing", "refId": "B" },
+        { "expr": "nginx_connections_waiting", "legendFormat": "waiting", "refId": "C" }
+      ],
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 }
+    },
+    {
+      "type": "graph",
+      "title": "HTTP Status Codes",
+      "targets": [
+        { "expr": "rate(nginx_http_requests_total{status=~\"2..\"}[1m])", "legendFormat": "200", "refId": "A" },
+        { "expr": "rate(nginx_http_requests_total{status=~\"4..\"}[1m])", "legendFormat": "400", "refId": "B" },
+        { "expr": "rate(nginx_http_requests_total{status=~\"5..\"}[1m])", "legendFormat": "500", "refId": "C" }
+      ],
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 }
+    }
+  ]
+}
